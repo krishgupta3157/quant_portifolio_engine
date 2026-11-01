@@ -1,14 +1,19 @@
 """
 Quantitative Portfolio Risk Engine & Dynamic Asset Allocation Optimizer
-Frontend · Streamlit + Plotly · All mock data — backend not yet built
+Frontend · Streamlit + Plotly · Powered by Real NIFTY 50 Historical Backend
 """
 
-import streamlit as st
+from __future__ import annotations
+
+import sys
+from datetime import date, timedelta
+from pathlib import Path
+import warnings
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import date, timedelta
-import warnings
+import streamlit as st
 
 warnings.filterwarnings("ignore")
 
@@ -16,18 +21,27 @@ warnings.filterwarnings("ignore")
 # PAGE CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Portfolio Risk Engine",
+    page_title="Portfolio Risk Engine · NIFTY 50",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS & BACKEND IMPORTS
+# ─────────────────────────────────────────────────────────────────────────────
+BASE_DIR = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(BASE_DIR / "src"))
+
+from data_loader import LocalDataLoader
+from optimization import PortfolioOptimizer
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CSS + NAVBAR + AMBIENT BLOBS
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
   --bg:      #050813;
@@ -63,10 +77,58 @@ st.markdown("""
   mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 50%, transparent 100%);
 }
 
-/* Hide Streamlit chrome */
-#MainMenu, header, footer { visibility: hidden !important; height: 0 !important; }
+/* Hide Streamlit menu and footer, but keep header and sidebar toggle interactive */
+#MainMenu, footer, div[data-testid="stToolbar"], div[data-testid="stDecoration"], div[data-testid="stStatusWidget"] {
+  display: none !important;
+}
+
+header[data-testid="stHeader"] {
+  background: transparent !important;
+  height: var(--nav-h) !important;
+  z-index: 100000 !important;
+  pointer-events: none !important;
+  display: flex !important;
+  align-items: center !important;
+  padding-left: 10px !important;
+}
+
+/* Ensure sidebar collapse & expand chevron buttons are always visible & prominent */
+[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] button,
+button[data-testid="stSidebarCollapseButton"] {
+  visibility: visible !important;
+  display: flex !important;
+  pointer-events: auto !important;
+  z-index: 100002 !important;
+  cursor: pointer !important;
+}
+
+[data-testid="collapsedControl"] {
+  position: fixed !important;
+  top: 10px !important;
+  left: 12px !important;
+  background: rgba(10, 15, 30, 0.95) !important;
+  border: 1px solid rgba(79, 142, 247, 0.5) !important;
+  border-radius: 8px !important;
+  padding: 4px 8px !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7), 0 0 10px rgba(79, 142, 247, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+[data-testid="collapsedControl"]:hover {
+  border-color: #4F8EF7 !important;
+  box-shadow: 0 4px 22px rgba(79, 142, 247, 0.5) !important;
+  transform: scale(1.05);
+}
+
+[data-testid="collapsedControl"] svg {
+  color: #4F8EF7 !important;
+  stroke: #4F8EF7 !important;
+  fill: #4F8EF7 !important;
+}
+
 .block-container {
-  padding: calc(var(--nav-h) + 1.8rem) 2.2rem 2.5rem 2.2rem !important;
+  padding: calc(var(--nav-h) + 1.2rem) 2.2rem 2.5rem 2.2rem !important;
   max-width: 100% !important; position: relative; z-index: 1;
 }
 
@@ -97,23 +159,23 @@ st.markdown("""
 .qp-nav {
   position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
   z-index: 9999; display: flex; align-items: center; padding: 0 2rem;
-  background: rgba(5,8,19,0.80);
+  background: rgba(5,8,19,0.88);
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border-bottom: 1px solid var(--bdr);
 }
 .qp-brand {
-  font-size: 0.75rem; font-weight: 800; letter-spacing: 0.18em;
+  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.18em;
   text-transform: uppercase; color: var(--muted); margin-right: 2.5rem;
   flex-shrink: 0; white-space: nowrap;
 }
 .qp-brand .hi { color: var(--blue); }
-.qp-links { display: flex; gap: 0.15rem; flex: 1; }
+.qp-links { display: flex; gap: 0.2rem; flex: 1; }
 .nav-btn {
   display: flex; align-items: center; gap: 0.38rem;
-  padding: 0.3rem 0.88rem; border-radius: 8px;
+  padding: 0.32rem 0.88rem; border-radius: 8px;
   font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
-  color: var(--muted); cursor: pointer;
+  color: var(--muted); cursor: pointer; text-decoration: none;
   transition: color 0.18s, background 0.18s, border-color 0.18s;
   border: 1px solid transparent; background: none;
   white-space: nowrap; user-select: none;
@@ -126,21 +188,21 @@ st.markdown("""
   display: flex; align-items: center; gap: 0.42rem;
   padding: 0.22rem 0.72rem; border-radius: 20px;
   font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; font-weight: 600;
-  background: rgba(251,113,133,0.10); border: 1px solid rgba(251,113,133,0.22);
-  color: var(--rose); white-space: nowrap;
+  background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.25);
+  color: var(--green); white-space: nowrap;
 }
 .rdot {
-  width: 5px; height: 5px; border-radius: 50%; background: var(--rose);
+  width: 5px; height: 5px; border-radius: 50%; background: var(--green);
   animation: rdotPulse 1.6s infinite;
 }
 @keyframes rdotPulse {
-  0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(251,113,133,0.5); }
-  60%      { opacity:0.4; box-shadow: 0 0 0 5px rgba(251,113,133,0); }
+  0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
+  60%      { opacity:0.4; box-shadow: 0 0 0 5px rgba(52,211,153,0); }
 }
 
 /* ═══════ FLIP CARDS ═══════ */
 .flip-wrap {
-  perspective: 1200px; height: 182px;
+  perspective: 1200px; height: 184px;
   cursor: pointer; user-select: none;
 }
 .flip-wrap:active { opacity: 0.92; }
@@ -173,15 +235,15 @@ st.markdown("""
 .fc-bar { height: 2.5px; margin: 0 -1.2rem 0.85rem -1.2rem; }
 .fc-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.08rem; }
 .fc-lbl  { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.fc-ico  { font-size: 1.25rem; opacity: 0.13; }
-.fc-val  { font-family: 'JetBrains Mono', monospace; font-size: 2rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; margin-bottom: 0.38rem; }
+.fc-ico  { font-size: 1.25rem; opacity: 0.2; }
+.fc-val  { font-family: 'JetBrains Mono', monospace; font-size: 1.95rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; margin-bottom: 0.38rem; }
 .fc-dlt  { font-family: 'JetBrains Mono', monospace; font-size: 0.67rem; color: var(--muted); }
 .fc-dlt .up   { color: var(--green); }
 .fc-dlt .down { color: var(--rose);  }
-.fc-hint { position: absolute; bottom: 0.6rem; right: 0.85rem; font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; color: #1E293B; letter-spacing: 0.08em; text-transform: uppercase; }
+.fc-hint { position: absolute; bottom: 0.6rem; right: 0.85rem; font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; color: #334155; letter-spacing: 0.08em; text-transform: uppercase; }
 .fc-back-tag  { font-size: 0.57rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.35rem; }
 .fc-back-name { font-size: 0.84rem; font-weight: 700; color: var(--txt); margin-bottom: 0.45rem; }
-.fc-back-desc { font-size: 0.69rem; color: #94A3B8; line-height: 1.65; flex: 1; }
+.fc-back-desc { font-size: 0.69rem; color: #94A3B8; line-height: 1.6; flex: 1; }
 .fc-back-eq   { font-family: 'JetBrains Mono', monospace; font-size: 0.59rem; color: var(--cyan); background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.14); border-radius: 6px; padding: 0.28rem 0.6rem; margin-top: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Color helpers */
@@ -196,7 +258,7 @@ st.markdown("""
 .sec-hdr { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.8rem; }
 .sec-left { display: flex; align-items: center; gap: 0.55rem; flex: 1; }
 .sec-pip  { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; }
-.sec-title { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.sec-title { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 .sec-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; font-weight: 600; padding: 2px 9px; border-radius: 20px; background: rgba(79,142,247,0.09); border: 1px solid rgba(79,142,247,0.2); color: var(--blue); }
 .info-btn {
   width: 22px; height: 22px; border-radius: 50%;
@@ -208,7 +270,6 @@ st.markdown("""
 }
 .info-btn:hover { border-color: var(--blue); color: var(--blue); background: rgba(79,142,247,0.1); }
 
-/* Info panel */
 .info-panel {
   background: rgba(8,13,32,0.97); border: 1px solid rgba(79,142,247,0.18);
   border-radius: 12px; padding: 0.9rem 1.15rem; margin-bottom: 0.85rem; display: none;
@@ -226,18 +287,78 @@ st.markdown("""
 .glow-div { height: 1px; margin: 0.2rem 0 1.6rem 0; background: linear-gradient(90deg, transparent, rgba(79,142,247,0.3) 30%, rgba(167,139,250,0.15) 65%, transparent); }
 
 /* Hero */
-.hero-wrap { padding: 0.5rem 0 1rem 0; }
-.hero-title { font-size: 1.45rem; font-weight: 800; letter-spacing: -0.025em; background: linear-gradient(115deg, #E2E8F0 0%, #4F8EF7 55%, #A78BFA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 0 0 0.22rem 0; line-height: 1.15; }
+.hero-wrap { padding: 0.3rem 0 0.8rem 0; }
+.hero-title { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.025em; background: linear-gradient(115deg, #E2E8F0 0%, #4F8EF7 55%, #A78BFA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 0 0 0.22rem 0; line-height: 1.15; }
 .hero-sub  { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); margin: 0 0 0.65rem 0; }
 .hero-chips { display: flex; gap: 1.2rem; flex-wrap: wrap; }
 .hero-chip  { font-family: 'JetBrains Mono', monospace; font-size: 0.63rem; color: var(--muted); display: flex; align-items: center; gap: 0.32rem; }
 .hero-chip .cd { width: 5px; height: 5px; border-radius: 50%; }
+
+/* Sidebar and toggle button styles */
+.nav-sidebar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.34rem 0.82rem;
+  border-radius: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #4F8EF7;
+  background: rgba(79, 142, 247, 0.12);
+  border: 1px solid rgba(79, 142, 247, 0.35);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+.nav-sidebar-btn:hover {
+  background: rgba(79, 142, 247, 0.22);
+  border-color: #4F8EF7;
+  box-shadow: 0 0 12px rgba(79, 142, 247, 0.35);
+  transform: translateY(-1px);
+}
+
+/* On-page segmented control for time horizon */
+[data-testid="stSegmentedControl"] {
+  background: rgba(10, 15, 30, 0.75) !important;
+  border: 1px solid rgba(79, 142, 247, 0.22) !important;
+  border-radius: 10px !important;
+  padding: 3px !important;
+  gap: 2px !important;
+}
+[data-testid="stSegmentedControl"] button {
+  background: transparent !important;
+  color: #94A3B8 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  border: 1px solid transparent !important;
+  border-radius: 7px !important;
+  padding: 0.38rem 0.9rem !important;
+  transition: all 0.18s ease !important;
+}
+[data-testid="stSegmentedControl"] button:hover {
+  color: #E2E8F0 !important;
+  background: rgba(79, 142, 247, 0.12) !important;
+}
+[data-testid="stSegmentedControl"] button[aria-checked="true"],
+[data-testid="stSegmentedControl"] button[data-checked="true"],
+[data-testid="stSegmentedControl"] [data-baseweb="button-group"] button[aria-selected="true"] {
+  background: rgba(79, 142, 247, 0.25) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(79, 142, 247, 0.5) !important;
+  box-shadow: 0 0 12px rgba(79, 142, 247, 0.35) !important;
+  font-weight: 700 !important;
+}
 
 /* Sidebar */
 [data-testid="stSidebar"] { background: rgba(5,8,19,0.98) !important; border-right: 1px solid var(--bdr) !important; }
 [data-testid="stSidebar"] * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
 .stMultiSelect [data-baseweb="tag"] { background: rgba(79,142,247,0.14) !important; border: 1px solid rgba(79,142,247,0.28) !important; color: #4F8EF7 !important; }
 .stRadio label { color: #E2E8F0 !important; font-size: 0.82rem !important; }
+.stSelectbox label, .stDateInput label { color: #94A3B8 !important; font-size: 0.78rem !important; font-weight: 600; }
 </style>
 
 <!-- Ambient blobs -->
@@ -247,65 +368,368 @@ st.markdown("""
 
 <!-- ═══ NAVBAR ═══ -->
 <nav class="qp-nav">
-  <div class="qp-brand">RISK <span class="hi">ENGINE</span></div>
+  <button class="nav-sidebar-btn" onclick="toggleSidebar()" title="Toggle Strategy & Universe Side Panel" style="margin-right:1.3rem;">
+    <span class="ni">☰</span> FILTERS &amp; SETTINGS
+  </button>
+  <div class="qp-brand">QUANT <span class="hi">ENGINE</span></div>
   <div class="qp-links">
-    <span class="nav-btn active" data-sec="sec-kpi"       onclick="navTo(this,'sec-kpi')"><span class="ni">◈</span>Overview</span>
-    <span class="nav-btn"        data-sec="sec-perf"      onclick="navTo(this,'sec-perf')"><span class="ni">↗</span>Performance</span>
-    <span class="nav-btn"        data-sec="sec-analytics" onclick="navTo(this,'sec-analytics')"><span class="ni">◎</span>Analytics</span>
-    <span class="nav-btn"        data-sec="sec-risk"      onclick="navTo(this,'sec-risk')"><span class="ni">⚡</span>Risk</span>
-    <span class="nav-btn"        data-sec="sec-portfolio" onclick="navTo(this,'sec-portfolio')"><span class="ni">◉</span>Portfolio</span>
+    <a class="nav-btn active" href="#sec-kpi"><span class="ni">◈</span>Overview</a>
+    <a class="nav-btn" href="#sec-perf"><span class="ni">↗</span>Performance</a>
+    <a class="nav-btn" href="#sec-analytics"><span class="ni">◎</span>Efficient Frontier</a>
+    <a class="nav-btn" href="#sec-risk"><span class="ni">⚡</span>Risk & Correlation</a>
+    <a class="nav-btn" href="#sec-portfolio"><span class="ni">◉</span>Asset Weights</a>
   </div>
   <div class="qp-right">
-    <div class="regime-chip"><span class="rdot"></span>HIGH VOL REGIME</div>
+    <button class="nav-sidebar-btn" onclick="toggleSidebar()" title="Configure Universe & Risk-Free Rate" style="font-size:0.68rem;padding:0.25rem 0.65rem;">
+      ⚙️ UNIVERSE &amp; Rf
+    </button>
+    <div class="regime-chip"><span class="rdot"></span>BACKEND CONNECTED</div>
   </div>
 </nav>
 
 <script>
-function navTo(el, id) {
-  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
-  el.classList.add('active');
-  var t = document.getElementById(id);
-  if (t) t.scrollIntoView({ behavior:'smooth', block:'start' });
+function toggleSidebar() {
+  var expandBtn = document.querySelector('[data-testid="collapsedControl"] button')
+               || document.querySelector('[data-testid="collapsedControl"]')
+               || document.querySelector('header button[kind="header"]');
+  var collapseBtn = document.querySelector('[data-testid="stSidebarCollapseButton"] button')
+                 || document.querySelector('[data-testid="stSidebarCollapseButton"]');
+  if (expandBtn && expandBtn.offsetParent !== null) {
+    expandBtn.click();
+  } else if (collapseBtn && collapseBtn.offsetParent !== null) {
+    collapseBtn.click();
+  } else if (expandBtn) {
+    expandBtn.click();
+  } else if (collapseBtn) {
+    collapseBtn.click();
+  }
 }
 function toggleInfo(id) {
   var el = document.getElementById(id);
   if (!el) return;
   var open = el.classList.contains('open');
   el.classList.toggle('open', !open);
-  if (!open) { el.style.animation='none'; void el.offsetHeight; el.style.animation=''; }
 }
-// Scroll-spy: highlight active nav item
-setTimeout(function() {
-  var ids = ['sec-kpi','sec-perf','sec-analytics','sec-risk','sec-portfolio'];
-  var obs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(e) {
-      if (e.isIntersecting) {
-        var sid = e.target.id;
-        document.querySelectorAll('.nav-btn').forEach(function(b) {
-          b.classList.toggle('active', b.getAttribute('data-sec') === sid);
-        });
-      }
-    });
-  }, { threshold: 0.4, rootMargin: '-56px 0px -45% 0px' });
-  ids.forEach(function(id){ var el=document.getElementById(id); if(el) obs.observe(el); });
-}, 1400);
 </script>
 """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CONSTANTS
+# 1. DATA CACHING & INGESTION
 # ─────────────────────────────────────────────────────────────────────────────
-TICKERS = ["AAPL","MSFT","GOOGL","AMZN","NVDA","JPM","XOM","UNH","V","META","BRK.B","LLY"]
+@st.cache_data(show_spinner="Ingesting NIFTY 50 multi-asset market data from raw storage...")
+def load_market_data() -> pd.DataFrame:
+    """Load, clean, and cache the unified price matrix of all surviving assets.
+    
+    Dynamically scans data/raw (with fallback to companies/), drops tickers with
+    >30% missing history, aligns to first simultaneous trading date, and ffills gaps.
+    """
+    loader = LocalDataLoader()
+    raw_dir = BASE_DIR / "data" / "raw"
+    if not raw_dir.exists():
+        raw_dir = BASE_DIR / "companies"
 
+    prices = loader.load_all_portfolio_assets(str(raw_dir), missing_threshold=0.30)
+    return prices
+
+
+# Load master cached price matrix
+try:
+    master_prices = load_market_data()
+except Exception as exc:
+    st.error(f"❌ Failed to load market data: {exc}")
+    st.stop()
+
+if master_prices.empty:
+    st.error("❌ Master price matrix is empty. Please verify that CSV files exist in data/raw or companies/.")
+    st.stop()
+
+all_surviving_tickers = sorted(master_prices.columns.tolist())
+master_min_date = master_prices.index.min().date()
+master_max_date = master_prices.index.max().date()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. HERO PLACEHOLDER & UNIVERSAL TIME HORIZON TOOLBAR
+# ─────────────────────────────────────────────────────────────────────────────
+hero_placeholder = st.empty()
+
+# Dedicated On-Page Time Horizon Toolbar (rendered directly underneath the Hero title)
+HORIZONS = ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "3 Years", "5 Years", "Max", "Custom"]
+
+with st.container():
+    st.markdown("""
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:0.1rem 0 0.5rem 0;flex-wrap:wrap;gap:0.7rem;">
+      <div style="display:flex;align-items:center;gap:0.6rem;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.74rem;font-weight:700;color:#4F8EF7;letter-spacing:0.06em;background:rgba(79,142,247,0.12);padding:0.25rem 0.65rem;border-radius:6px;border:1px solid rgba(79,142,247,0.3);">
+          ⏱ TIME HORIZON
+        </span>
+        <span style="font-size:0.73rem;color:#94A3B8;">Click any horizon below for instant portfolio recalculation &amp; chart updates:</span>
+      </div>
+      <button class="nav-sidebar-btn" onclick="toggleSidebar()" style="margin:0;font-size:0.72rem;padding:0.32rem 0.85rem;" title="Open Side Panel for Stock Universe & Risk-Free Rate">
+        ⚙️ Settings &amp; Universe (Side Panel)
+      </button>
+    </div>
+    """, unsafe_allow_html=True)
+
+    time_horizon = st.segmented_control(
+        "Time Horizon",
+        options=HORIZONS,
+        default="Max",
+        label_visibility="collapsed",
+        key="main_page_horizon"
+    ) or "Max"
+
+    custom_start: date | None = None
+    custom_end: date | None = None
+
+    if time_horizon == "Custom":
+        col_c1, col_c2, col_c3 = st.columns([2, 2, 3])
+        with col_c1:
+            custom_start = st.date_input(
+                "Start Date",
+                value=master_min_date,
+                min_value=master_min_date,
+                max_value=master_max_date,
+                key="custom_start_in",
+            )
+        with col_c2:
+            custom_end = st.date_input(
+                "End Date",
+                value=master_max_date,
+                min_value=master_min_date,
+                max_value=master_max_date,
+                key="custom_end_in",
+            )
+        with col_c3:
+            st.markdown(f"<div style='font-size:0.74rem;color:#94A3B8;padding-top:1.7rem;'>Available History: <b>{master_min_date}</b> → <b>{master_max_date}</b></div>", unsafe_allow_html=True)
+
+        if custom_start and custom_end and custom_start > custom_end:
+            st.error("❌ **Invalid Date Range**: Start Date cannot be after End Date.")
+            st.stop()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2B. SIDEBAR STRATEGY PARAMETERS
+# ─────────────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### ⚙ Strategy & Filter Parameters")
+    st.markdown("---")
+    st.markdown(f"**Selected Time Horizon:** `{time_horizon}`")
+    st.markdown("<span style='font-size:0.75rem;color:#94A3B8;'>You can also click any horizon directly in the toolbar on the main dashboard.</span>", unsafe_allow_html=True)
+
+    # Asset Universe selector (defaults to all surviving NIFTY stocks)
+    selected_assets = st.multiselect(
+        "Asset Universe (NIFTY 50)",
+        options=all_surviving_tickers,
+        default=all_surviving_tickers,
+        help="Select any subset of surviving NIFTY stocks. By default all 42 surviving institutional stocks are included.",
+        key="sb_universe_select"
+    )
+
+    if not selected_assets:
+        selected_assets = all_surviving_tickers[:10]
+        st.info("ℹ Defaulted to top 10 assets because selection was empty.")
+
+    st.markdown("---")
+
+    # Risk-free rate (Annualised)
+    rf_rate_pct = st.slider(
+        "Risk-Free Rate (Rf %)",
+        min_value=2.0, max_value=10.0, value=6.5, step=0.25,
+        help="Annualised risk-free rate used for Sharpe ratio calculation (Defaults to 6.5% for Indian 10-Yr G-Sec Yield).",
+        key="sb_rf_slider"
+    )
+    rf_rate = rf_rate_pct / 100.0
+
+    st.markdown("---")
+    st.markdown(f"""
+    <div style="font-size:0.62rem;color:#475569;line-height:1.8;font-family:'JetBrains Mono',monospace;">
+      <b>PORTFOLIO ENGINE v3.0</b><br>
+      Surviving Universe: {len(all_surviving_tickers)} Assets<br>
+      Selected Assets: {len(selected_assets)} Assets<br>
+      History: {master_min_date} → {master_max_date}<br>
+      Total Trading Days: {len(master_prices):,}
+    </div>
+    <br>
+    <button class="nav-sidebar-btn" onclick="toggleSidebar()" style="width:100%;justify-content:center;margin:0;">
+      ◀ Collapse Side Panel
+    </button>
+    """, unsafe_allow_html=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SLICING LOGIC
+# ─────────────────────────────────────────────────────────────────────────────
+def slice_price_matrix(
+    df: pd.DataFrame,
+    horizon: str,
+    assets: list[str],
+    c_start: date | None = None,
+    c_end: date | None = None,
+) -> pd.DataFrame:
+    """Strictly slice cached master price matrix down to the selected date range and asset subset."""
+    max_d = df.index.max()
+    min_d = df.index.min()
+
+    if horizon == "1 Week":
+        start_ts = max_d - pd.Timedelta(days=7)
+        end_ts = max_d
+    elif horizon == "1 Month":
+        start_ts = max_d - pd.DateOffset(months=1)
+        end_ts = max_d
+    elif horizon == "3 Months":
+        start_ts = max_d - pd.DateOffset(months=3)
+        end_ts = max_d
+    elif horizon == "6 Months":
+        start_ts = max_d - pd.DateOffset(months=6)
+        end_ts = max_d
+    elif horizon == "1 Year":
+        start_ts = max_d - pd.DateOffset(years=1)
+        end_ts = max_d
+    elif horizon == "3 Years":
+        start_ts = max_d - pd.DateOffset(years=3)
+        end_ts = max_d
+    elif horizon == "5 Years":
+        start_ts = max_d - pd.DateOffset(years=5)
+        end_ts = max_d
+    elif horizon == "Custom" and c_start and c_end:
+        start_ts = pd.Timestamp(c_start)
+        end_ts = pd.Timestamp(c_end)
+    else:  # "Max"
+        start_ts = min_d
+        end_ts = max_d
+
+    # Slice dates
+    sub = df.loc[(df.index >= start_ts) & (df.index <= end_ts), assets].copy()
+
+    # Drop columns that have no active prices in this slice
+    sub = sub.dropna(axis=1, how="all")
+    # Forward-fill any internal gaps
+    sub = sub.ffill().bfill()
+    return sub
+
+
+sliced_prices = slice_price_matrix(
+    master_prices, time_horizon, selected_assets, custom_start, custom_end
+)
+
+if len(sliced_prices) < 5:
+    st.error(f"❌ **Insufficient Historical Data**: Only {len(sliced_prices)} trading days found for the selected horizon. Please choose a broader interval (at least 5 trading days are required to calculate returns and covariance).")
+    st.stop()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. DYNAMIC MPT OPTIMIZATION & MONTE CARLO SIMULATION
+# ─────────────────────────────────────────────────────────────────────────────
+opt = PortfolioOptimizer(sliced_prices, risk_free_rate=rf_rate, frequency=252)
+
+# Calculate dynamic weights
+ms_weights = opt.optimize_max_sharpe()
+mv_weights = opt.optimize_min_volatility()
+ew_weights = opt.get_equal_weights()
+
+active_tickers = list(sliced_prices.columns)
+n_active = len(active_tickers)
+
+# Vectorized weight arrays
+w_ms = np.array([ms_weights.get(t, 0.0) for t in active_tickers])
+w_mv = np.array([mv_weights.get(t, 0.0) for t in active_tickers])
+w_ew = np.array([ew_weights.get(t, 0.0) for t in active_tickers])
+
+# Daily returns of the active universe
+daily_rets = sliced_prices.pct_change().dropna()
+
+# Portfolio daily returns series
+ret_ms_series = daily_rets.dot(w_ms) if len(daily_rets) > 0 else pd.Series(dtype=float)
+ret_mv_series = daily_rets.dot(w_mv) if len(daily_rets) > 0 else pd.Series(dtype=float)
+ret_ew_series = daily_rets.dot(w_ew) if len(daily_rets) > 0 else pd.Series(dtype=float)
+
+# Cumulative NAV trajectories (Base $100)
+nav_ms = 100.0 * (1.0 + ret_ms_series).cumprod()
+nav_mv = 100.0 * (1.0 + ret_mv_series).cumprod()
+nav_ew = 100.0 * (1.0 + ret_ew_series).cumprod()
+
+
+# ── Monte Carlo Simulation for Efficient Frontier ────────────────────────────
+@st.cache_data(show_spinner=False)
+def simulate_efficient_frontier(
+    mu_dict: dict[str, float],
+    cov_matrix: pd.DataFrame,
+    rf: float,
+    n_sims: int = 3500,
+) -> pd.DataFrame:
+    """Generate Monte Carlo portfolios across the risk-return spectrum."""
+    tickers = list(cov_matrix.columns)
+    mu_arr = np.array([mu_dict[t] for t in tickers])
+    cov_arr = cov_matrix.values
+    n = len(tickers)
+
+    np.random.seed(42)
+    # Dirichlet distribution ensures all weights >= 0 and sum(w) = 1.0
+    W = np.random.dirichlet(np.ones(n), size=n_sims)
+    rets = np.dot(W, mu_arr)
+    vols = np.sqrt(np.sum(W * np.dot(W, cov_arr), axis=1))
+    sharpes = np.where(vols > 0, (rets - rf) / vols, 0.0)
+
+    return pd.DataFrame({"v": vols, "r": rets, "s": sharpes})
+
+
+# Compute MC cloud from dynamic mu & covariance
+frontier_df = simulate_efficient_frontier(
+    opt.mu.to_dict(), opt.S, rf_rate, n_sims=3500
+)
+
+# Portfolio specific stats
+def calc_portfolio_stats(w_vec: np.ndarray, mu_s: pd.Series, cov_df: pd.DataFrame, rf: float):
+    ret = float(np.sum(w_vec * mu_s.values))
+    vol = float(np.sqrt(np.dot(w_vec.T, np.dot(cov_df.values, w_vec))))
+    sharpe = (ret - rf) / vol if vol > 0 else 0.0
+    return ret, vol, sharpe
+
+ms_ret, ms_vol, ms_sharpe = calc_portfolio_stats(w_ms, opt.mu, opt.S, rf_rate)
+mv_ret, mv_vol, mv_sharpe = calc_portfolio_stats(w_mv, opt.mu, opt.S, rf_rate)
+ew_ret, ew_vol, ew_sharpe = calc_portfolio_stats(w_ew, opt.mu, opt.S, rf_rate)
+
+
+# ── KPI Calculations ─────────────────────────────────────────────────────────
+n_days = len(ret_ms_series)
+days_per_year = 252
+
+# Annualized CAGR
+if n_days >= 20:
+    years = n_days / days_per_year
+    cagr_ms = (nav_ms.iloc[-1] / 100.0) ** (1.0 / max(years, 0.08)) - 1.0
+    cagr_ew = (nav_ew.iloc[-1] / 100.0) ** (1.0 / max(years, 0.08)) - 1.0
+else:
+    cagr_ms = (nav_ms.iloc[-1] / 100.0) - 1.0 if len(nav_ms) > 0 else 0.0
+    cagr_ew = (nav_ew.iloc[-1] / 100.0) - 1.0 if len(nav_ew) > 0 else 0.0
+
+# Max Drawdown
+cummax_ms = nav_ms.cummax()
+dd_ms_series = (nav_ms - cummax_ms) / cummax_ms * 100.0
+max_dd_ms = float(dd_ms_series.min()) if len(dd_ms_series) > 0 else 0.0
+
+cummax_ew = nav_ew.cummax()
+dd_ew_series = (nav_ew - cummax_ew) / cummax_ew * 100.0
+max_dd_ew = float(dd_ew_series.min()) if len(dd_ew_series) > 0 else 0.0
+
+# 95% Daily Historical VaR
+var_95_pct = float(np.percentile(ret_ms_series, 5)) if len(ret_ms_series) > 0 else 0.0
+var_95_dollar = abs(var_95_pct) * 1_000_000
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SHARED PLOTLY THEME
+# ─────────────────────────────────────────────────────────────────────────────
 PLAYOUT = dict(
     template="plotly_dark",
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font=dict(family="Plus Jakarta Sans, sans-serif", color="#64748B", size=11),
-    margin=dict(l=10, r=10, t=38, b=10),
+    margin=dict(l=15, r=15, t=38, b=15),
     legend=dict(
-        bgcolor="rgba(10,15,30,0.82)", bordercolor="rgba(79,142,247,0.15)",
+        bgcolor="rgba(10,15,30,0.85)", bordercolor="rgba(79,142,247,0.18)",
         borderwidth=1, font=dict(size=11, color="#E2E8F0"),
         orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
     ),
@@ -316,82 +740,6 @@ PLAYOUT = dict(
                spikecolor="#4F8EF7", spikethickness=1, spikedash="dot"),
 )
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MOCK DATA GENERATORS
-# ─────────────────────────────────────────────────────────────────────────────
-@st.cache_data(show_spinner=False)
-def gen_equity(start, end, risk, assets_t):
-    np.random.seed(42)
-    dates = pd.bdate_range(start=pd.Timestamp(start), end=pd.Timestamp(end))
-    n = len(dates)
-    if n < 10:
-        n = 1260; dates = pd.bdate_range(end=pd.Timestamp.today(), periods=n)
-    ew  = np.random.normal(0.00038, 0.0082, n)
-    mpt = np.random.normal(0.00055, 0.0075*(1-risk/200), n)
-    gbm = np.random.normal(0.00072, 0.0065*(1-risk/300), n)
-    cs, ce = int(n*0.38), int(n*0.48)
-    ew [cs:ce] = np.random.normal(-0.0055, 0.018, ce-cs)
-    mpt[cs:ce] = np.random.normal(-0.0045, 0.017, ce-cs)
-    gbm[cs:ce] = np.random.normal(-0.0035, 0.016, ce-cs)
-    df = pd.DataFrame({
-        "Date":             dates[:n],
-        "Equal Weight":     100*np.cumprod(1+ew),
-        "Markowitz MPT":    100*np.cumprod(1+mpt),
-        "LightGBM Dynamic": 100*np.cumprod(1+gbm),
-    })
-    return df, (dates[cs], dates[ce-1])
-
-@st.cache_data(show_spinner=False)
-def gen_kpis(df):
-    r  = df["LightGBM Dynamic"].pct_change().dropna()
-    n  = len(r)
-    rm = df["LightGBM Dynamic"].cummax()
-    dd = (df["LightGBM Dynamic"] - rm) / rm
-    return {
-        "cagr":   (df["LightGBM Dynamic"].iloc[-1]/100)**(252/n)-1,
-        "sharpe": r.mean()/r.std()*np.sqrt(252),
-        "maxdd":  dd.min(),
-        "var95":  np.percentile(r, 5)*df["LightGBM Dynamic"].iloc[-1]/100,
-    }
-
-@st.cache_data(show_spinner=False)
-def gen_frontier(n=8000):
-    np.random.seed(7)
-    vols = np.random.beta(2,5,n)*0.35+0.06
-    sh   = np.random.beta(3,2,n)*3.2+0.3
-    ret  = np.clip(vols*sh+np.random.normal(0,0.008,n), 0.03, 0.55)
-    mask = (ret > vols*0.35)|(vols < 0.13)
-    return pd.DataFrame({"v":vols[mask],"r":ret[mask],"s":sh[mask]})
-
-@st.cache_data(show_spinner=False)
-def gen_shap():
-    feats = ["VIX 30d Moving Avg","Tech/Energy Corr","Asset Momentum 12M",
-             "Yield Curve Slope","Credit Spread Delta","FX Vol Index",
-             "Macro Surprise","Liquidity Ratio","Sector Rotation","Earnings Rev."]
-    np.random.seed(99)
-    vals = sorted(np.random.randn(len(feats))*0.18, key=abs)
-    return pd.DataFrame({"f":feats,"v":vals})
-
-@st.cache_data(show_spinner=False)
-def gen_corr(assets_t):
-    assets = list(assets_t); np.random.seed(21); n = len(assets)
-    c = np.corrcoef(np.random.randn(n,n)); np.fill_diagonal(c,1.)
-    return pd.DataFrame(c, index=assets, columns=assets)
-
-@st.cache_data(show_spinner=False)
-def gen_risk(df):
-    r = df.set_index("Date")["LightGBM Dynamic"].pct_change()
-    return pd.DataFrame({
-        "Date": df["Date"],
-        "v21":  r.rolling(21).std()*np.sqrt(252)*100,
-        "v63":  r.rolling(63).std()*np.sqrt(252)*100,
-    })
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# HELPER FUNCTIONS
-# ─────────────────────────────────────────────────────────────────────────────
 def apply_layout(fig, h=385, **kw):
     fig.update_layout(**{**PLAYOUT, "height": h, **kw})
     return fig
@@ -445,62 +793,21 @@ def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SIDEBAR
-# ─────────────────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙ Strategy Parameters")
-    st.markdown("---")
-    selected_assets = st.multiselect(
-        "Asset Universe", options=TICKERS,
-        default=["AAPL","MSFT","NVDA","JPM","XOM","GOOGL","V","META"],
-    )
-    if not selected_assets:
-        selected_assets = TICKERS[:8]
-    st.markdown("---")
-    today      = date.today()
-    start_date = st.date_input("Start Date", value=today - timedelta(days=5*365))
-    end_date   = st.date_input("End Date",   value=today)
-    st.markdown("---")
-    risk_tol  = st.slider("Target Max Volatility (%)", 5, 40, 18, 1)
-    st.markdown("---")
-    view_mode = st.radio("View Mode",
-                         ["📊 Backtest Performance", "🔮 Live Regime Forecast"], index=0)
-    st.markdown("---")
-    st.markdown("""
-    <div style="font-size:0.6rem;color:#1E293B;text-align:center;line-height:2;
-                font-family:'JetBrains Mono',monospace;">
-        v2.1.0 · mock data<br>backend pending<br>© 2025 IDSE Quant Lab
-    </div>""", unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# GENERATE DATA
-# ─────────────────────────────────────────────────────────────────────────────
-at       = tuple(selected_assets)
-eq_df, reg = gen_equity(start_date, end_date, risk_tol, at)
-kpis     = gen_kpis(eq_df)
-front    = gen_frontier()
-shap_df  = gen_shap()
-corr_df  = gen_corr(at)
-risk_df  = gen_risk(eq_df)
-is_bt    = "Backtest" in view_mode
-
-PALETTE  = ["#4F8EF7","#34D399","#FBBF24","#FB7185","#A78BFA",
-            "#22D3EE","#F97316","#E879F9","#38BDF8","#84CC16","#FCD34D","#6EE7B7"]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # HERO HEADER
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown(f"""
+delta_days = (sliced_prices.index.max() - sliced_prices.index.min()).days
+start_str = sliced_prices.index.min().strftime('%d %b %Y')
+end_str = sliced_prices.index.max().strftime('%d %b %Y')
+
+hero_placeholder.markdown(f"""
 <div class="hero-wrap">
-  <div class="hero-title">Quant Portfolio Risk Engine</div>
-  <div class="hero-sub">DYNAMIC ASSET ALLOCATION &nbsp;·&nbsp; ML-DRIVEN RISK MANAGEMENT</div>
+  <div class="hero-title">Quantitative Portfolio Risk Engine</div>
+  <div class="hero-sub">MODERN PORTFOLIO THEORY &nbsp;·&nbsp; REAL NIFTY 50 MULTI-ASSET ENGINE</div>
   <div class="hero-chips">
-    <div class="hero-chip"><div class="cd" style="background:#4F8EF7;"></div>{len(selected_assets)} Assets</div>
-    <div class="hero-chip"><div class="cd" style="background:#34D399;"></div>Vol Cap: {risk_tol}%</div>
-    <div class="hero-chip"><div class="cd" style="background:#A78BFA;"></div>{"Backtest" if is_bt else "Forecast"}</div>
-    <div class="hero-chip"><div class="cd" style="background:#FB7185;"></div>{date.today().strftime('%d %b %Y')}</div>
+    <div class="hero-chip"><div class="cd" style="background:#4F8EF7;"></div>{n_active} Active Assets</div>
+    <div class="hero-chip"><div class="cd" style="background:#34D399;"></div>Horizon: {time_horizon} ({n_days:,} Trading Days)</div>
+    <div class="hero-chip"><div class="cd" style="background:#A78BFA;"></div>Range: {start_str} → {end_str}</div>
+    <div class="hero-chip"><div class="cd" style="background:#FB7185;"></div>Risk-Free Rate: {rf_rate_pct:.1f}%</div>
   </div>
 </div>
 <div class="glow-div"></div>
@@ -508,335 +815,478 @@ st.markdown(f"""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ROW 1 — KPI FLIP CARDS
+# 4. ROW 1 — REAL PERFORMANCE KPI FLIP CARDS
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-kpi")
-sec_header("Performance Snapshot", badge="LIVE MOCK", color="#4F8EF7",
-           info_id="info-kpi", info_html="""
-<h4>📊 Performance Snapshot</h4>
-<p>Four key risk-adjusted performance indicators for the <b>LightGBM Dynamic</b> strategy over
-the selected backtest window. All figures are annualised. <b>Click any card</b> to flip it and
-see the full definition and formula.</p>
-<span class="eq">Base currency: USD &nbsp;·&nbsp; Confidence: 95% &nbsp;·&nbsp; Calendar: business days</span>
-""")
+sec_header(
+    "Performance Snapshot",
+    badge=f"REAL DATA · {time_horizon.upper()}",
+    color="#4F8EF7",
+    info_id="info-kpi",
+    info_html="""
+<h4>📊 Performance Snapshot (Dynamic Time Horizon)</h4>
+<p>Four primary risk-adjusted metrics calculated dynamically on the <b>Max Sharpe Portfolio</b> over your chosen time window. Figures are annualized via standard NSE 252-day convention.</p>
+<span class="eq">Base: INR · Confidence: 95% · Currency: Multi-Asset NIFTY 50</span>
+""",
+)
+
+diff_cagr = (cagr_ms - cagr_ew) * 100.0
+diff_sharpe = ms_sharpe - ew_sharpe
+diff_dd = max_dd_ms - max_dd_ew
 
 c1, c2, c3, c4 = st.columns(4)
+
 with c1:
-    flip_card("cagr",
+    flip_card(
+        "cagr",
         bar_css="linear-gradient(90deg,#34D399,#059669)",
-        lbl="Strategy CAGR", icon="📈",
-        val_html=f"{kpis['cagr']*100:+.1f}%", val_cls="c-green",
-        dlt_html='<span class="up">▲ +4.2pp vs SPY</span>',
-        back_tag="RETURN METRIC", back_tag_cls="c-green",
+        lbl="Max Sharpe CAGR",
+        icon="📈",
+        val_html=f"{cagr_ms*100:+.1f}%",
+        val_cls="c-green" if cagr_ms >= 0 else "c-rose",
+        dlt_html=f'<span class="{"up" if diff_cagr >= 0 else "down"}">{"▲" if diff_cagr >= 0 else "▼"} {diff_cagr:+.1f}pp vs Equal Weight</span>',
+        back_tag="COMPOUND RETURN",
+        back_tag_cls="c-green",
         back_name="Compound Annual Growth Rate",
-        desc="CAGR smooths compounded returns over the full horizon, showing the hypothetical constant annual growth rate. Higher CAGR relative to benchmarks signals consistent alpha generation.",
-        eq="CAGR = (NAV_end / NAV_start)^(252/N) − 1")
+        desc=f"Annualized compounded return over the selected {time_horizon} horizon. Evaluates the long-term wealth compounding power of the risk-adjusted optimal asset weights.",
+        eq="CAGR = (NAV_end / NAV_start)^(252 / N) − 1",
+    )
 
 with c2:
-    flip_card("sharpe",
+    flip_card(
+        "sharpe",
         bar_css="linear-gradient(90deg,#4F8EF7,#2563EB)",
-        lbl="Sharpe Ratio", icon="⚡",
-        val_html=f"{kpis['sharpe']:.2f}", val_cls="c-blue",
-        dlt_html='<span class="up">▲ 0.38 vs Equal Weight</span>',
-        back_tag="RISK-ADJUSTED", back_tag_cls="c-blue",
+        lbl="Sharpe Ratio",
+        icon="⚡",
+        val_html=f"{ms_sharpe:.2f}",
+        val_cls="c-blue",
+        dlt_html=f'<span class="{"up" if diff_sharpe >= 0 else "down"}">{"▲" if diff_sharpe >= 0 else "▼"} {diff_sharpe:+.2f} vs Equal Weight</span>',
+        back_tag="RISK-ADJUSTED",
+        back_tag_cls="c-blue",
         back_name="Sharpe Ratio",
-        desc="Measures excess return earned per unit of total risk (σ). A ratio above 1.0 is good; above 2.0 is excellent. Assumes risk-free rate ≈ 0 for simplicity in backtest mode.",
-        eq="Sharpe = (R_p − R_f) / σ_p × √252")
+        desc=f"Excess return generated per unit of total annualized volatility above the {rf_rate_pct:.1f}% risk-free rate for this exact time period.",
+        eq=f"Sharpe = (R_p − {rf_rate_pct:.2f}%) / σ_p × √252",
+    )
 
 with c3:
-    flip_card("maxdd",
+    flip_card(
+        "maxdd",
         bar_css="linear-gradient(90deg,#FB7185,#BE123C)",
-        lbl="Max Drawdown", icon="📉",
-        val_html=f"{kpis['maxdd']*100:.1f}%", val_cls="c-rose",
-        dlt_html='<span class="up">▲ 6.1pp better vs EW</span>',
-        back_tag="DOWNSIDE RISK", back_tag_cls="c-rose",
+        lbl="Max Drawdown",
+        icon="📉",
+        val_html=f"{max_dd_ms:.1f}%",
+        val_cls="c-rose",
+        dlt_html=f'<span class="{"up" if diff_dd >= 0 else "down"}">{"▲" if diff_dd >= 0 else "▼"} {abs(diff_dd):.1f}pp vs Equal Weight</span>',
+        back_tag="DOWNSIDE RISK",
+        back_tag_cls="c-rose",
         back_name="Maximum Drawdown",
-        desc="The worst peak-to-trough decline in portfolio value during the backtest. Quantifies the maximum loss an investor would have sustained buying at the peak and selling at the nadir.",
-        eq="MDD = min_t [ (NAV_t − max_{τ≤t} NAV_τ) / max NAV ]")
+        desc="The single deepest peak-to-trough decline experienced by the Max Sharpe portfolio across the selected interval.",
+        eq="MDD = min_t [ (NAV_t − max_{τ≤t} NAV_τ) / max NAV ]",
+    )
 
 with c4:
-    flip_card("var",
+    flip_card(
+        "var",
         bar_css="linear-gradient(90deg,#FBBF24,#B45309)",
-        lbl="Next-Day 95% VaR", icon="🎯",
-        val_html=f"${abs(kpis['var95'])*1e6:,.0f}", val_cls="c-amber",
-        dlt_html='<span class="down">▼ Per $1M notional</span>',
-        back_tag="TAIL RISK", back_tag_cls="c-amber",
-        back_name="Value at Risk (95%)",
-        desc="Historical simulation VaR: the minimum expected loss on the worst 5% of days, scaled to $1M notional. This is the next-day forecast from the rolling empirical return distribution.",
-        eq="VaR₀.₀₅ = Percentile(R_daily, 5%) × Notional")
+        lbl="Daily 95% VaR",
+        icon="🎯",
+        val_html=f"₹{var_95_dollar:,.0f}",
+        val_cls="c-amber",
+        dlt_html=f'<span class="down">▼ {abs(var_95_pct)*100:.2f}% per ₹10L Notional</span>',
+        back_tag="TAIL RISK",
+        back_tag_cls="c-amber",
+        back_name="Historical Value at Risk (95%)",
+        desc="The minimum expected loss on the worst 5% of trading days during this time window, scaled to ₹10 Lakhs portfolio notional.",
+        eq="VaR₀.₀₅ = Percentile(R_daily, 5%) × Notional",
+    )
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ROW 2 — EQUITY CURVES
+# 5. ROW 2 — REAL EQUITY CURVE COMPARISON
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-perf")
 sec_header(
-    "Equity Curve Comparison" if is_bt else "Live Regime Forecast",
-    badge="BACKTEST" if is_bt else "FORECAST",
+    f"Equity Curve Comparison ({start_str} → {end_str})",
+    badge=f"{len(ret_ms_series):,} TRADING DAYS",
     color="#4F8EF7",
-    info_id="info-perf", info_html="""
-<h4>📈 Equity Curve Comparison</h4>
-<p>Normalised NAV curves (base $100) for three construction methodologies over the backtest window.
-The <b style="color:#FB7185;">shaded red zone</b> marks a simulated crash regime detected by the
-Hidden Markov Model classifier.</p>
-<p><b>Equal Weight</b> — naive 1/N benchmark &nbsp;·&nbsp; <b>Markowitz MPT</b> — mean-variance
-optimal &nbsp;·&nbsp; <b>LightGBM Dynamic</b> — ML tactical allocation (hero strategy)</p>
-<span class="eq">Hover for cross-hair &nbsp;·&nbsp; Regime: 2-state HMM on daily returns</span>
-""")
+    info_id="info-perf",
+    info_html="""
+<h4>📈 Equity Curve Comparison (Base ₹100)</h4>
+<p>Cumulative compounded performance of the three canonical MPT allocation strategies over your selected time window:</p>
+<p>• <b style="color:#34D399;">Max Sharpe Portfolio</b> — Mean-variance optimal tangential allocation<br>
+• <b style="color:#38BDF8;">Minimum Volatility Portfolio</b> — Global Minimum Variance (left-most frontier)<br>
+• <b style="color:#A78BFA;">Equal Weight (1/N)</b> — Benchmark allocation across all surviving assets</p>
+""",
+)
 
 fig_main = go.Figure()
-fig_main.add_vrect(
-    x0=str(reg[0].date()), x1=str(reg[1].date()),
-    fillcolor="rgba(251,113,133,0.05)", layer="below", line_width=0,
-    annotation_text="⚠ CRASH REGIME", annotation_position="top left",
-    annotation=dict(font=dict(color="#FB7185",size=9,family="JetBrains Mono"),
-                    bgcolor="rgba(251,113,133,0.1)", bordercolor="rgba(251,113,133,0.25)",
-                    borderwidth=1, borderpad=4),
+
+fig_main.add_trace(go.Scatter(
+    x=nav_ew.index, y=nav_ew.values, name="Equal Weight (1/N)",
+    line=dict(color="#A78BFA", width=1.8, dash="dot"),
+    hovertemplate="<b>Equal Weight</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
+))
+
+fig_main.add_trace(go.Scatter(
+    x=nav_mv.index, y=nav_mv.values, name="Min Volatility",
+    line=dict(color="#38BDF8", width=2.2),
+    hovertemplate="<b>Min Volatility</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
+))
+
+fig_main.add_trace(go.Scatter(
+    x=nav_ms.index, y=nav_ms.values, name="Max Sharpe Portfolio",
+    line=dict(color="#34D399", width=3.2),
+    fill="tozeroy", fillcolor="rgba(52,211,153,0.05)",
+    hovertemplate="<b>Max Sharpe</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
+))
+
+apply_layout(
+    fig_main, h=410,
+    yaxis=dict(tickprefix="₹", showgrid=True, gridcolor="rgba(79,142,247,0.06)", zeroline=False),
+    hovermode="x unified",
 )
-fig_main.add_trace(go.Scatter(
-    x=eq_df["Date"], y=eq_df["Equal Weight"], name="Equal Weight",
-    line=dict(color="#334155",width=1.6,dash="dot"),
-    hovertemplate="<b>Equal Weight</b><br>%{x|%d %b %Y}<br>$%{y:.1f}<extra></extra>",
-))
-fig_main.add_trace(go.Scatter(
-    x=eq_df["Date"], y=eq_df["Markowitz MPT"], name="Markowitz MPT",
-    line=dict(color="#FBBF24",width=2.2),
-    hovertemplate="<b>Markowitz MPT</b><br>%{x|%d %b %Y}<br>$%{y:.1f}<extra></extra>",
-))
-fig_main.add_trace(go.Scatter(
-    x=eq_df["Date"], y=eq_df["LightGBM Dynamic"], name="LightGBM Dynamic",
-    line=dict(color="#4F8EF7",width=3.2),
-    fill="tozeroy", fillcolor="rgba(79,142,247,0.04)",
-    hovertemplate="<b>LightGBM Dynamic</b><br>%{x|%d %b %Y}<br>$%{y:.1f}<extra></extra>",
-))
-apply_layout(fig_main, h=415,
-             yaxis=dict(tickprefix="$",showgrid=True,
-                        gridcolor="rgba(79,142,247,0.06)",zeroline=False),
-             hovermode="x unified")
-st.plotly_chart(fig_main, width='stretch', config={"displayModeBar": False})
+st.plotly_chart(fig_main, width="stretch", config={"displayModeBar": False})
 st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ROW 3 — EFFICIENT FRONTIER + SHAP
+# 6. ROW 3 — MONTE CARLO EFFICIENT FRONTIER + ASSET ALLOCATION
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-analytics")
-col_ef, col_sh = st.columns([1,1], gap="large")
+col_ef, col_alloc = st.columns([1.1, 0.9], gap="large")
 
 with col_ef:
-    sec_header("Monte Carlo Efficient Frontier", badge="8K SIMS", color="#A78BFA",
-               info_id="info-ef", info_html="""
-<h4>◎ Monte Carlo Efficient Frontier</h4>
-<p>8,000 randomly-weighted portfolios plotted in risk-return space, colored by Sharpe Ratio.
-The upper-left boundary defines the <b>Efficient Frontier</b> — maximum return for given risk.</p>
-<p><b style="color:#FB7185;">★ Red</b> = Markowitz optimal point &nbsp;·&nbsp;
-<b style="color:#4F8EF7;">★ Blue</b> = current ML strategy allocation</p>
-<span class="eq">Weights via Dirichlet sampling &nbsp;·&nbsp; Cov: rolling 252-day window</span>
-""")
-    fig_ef = go.Figure()
-    fig_ef.add_trace(go.Scatter(
-        x=front["v"]*100, y=front["r"]*100, mode="markers",
-        marker=dict(
-            color=front["s"],
-            colorscale=[[0,"#0A0F1E"],[0.3,"#1E3A5F"],[0.6,"#2563EB"],[1,"#4F8EF7"]],
-            size=3, opacity=0.6,
-            colorbar=dict(title=dict(text="Sharpe",font=dict(size=10,color="#64748B")),
-                          tickfont=dict(family="JetBrains Mono",size=9,color="#64748B"),
-                          thickness=9, len=0.65),
-        ),
-        name="Portfolios",
-        hovertemplate="Vol:%{x:.1f}%  Ret:%{y:.1f}%<extra></extra>",
-    ))
-    oi = front["s"].idxmax()
-    ov, or_ = front.loc[oi,"v"]*100, front.loc[oi,"r"]*100
-    for x,y,col,txt,pos in [
-        (ov,  or_,     "#FB7185","MPT Optimal","top right"),
-        (ov*0.87, or_*1.09, "#4F8EF7","ML Portfolio","top left"),
-    ]:
-        fig_ef.add_trace(go.Scatter(
-            x=[x],y=[y],mode="markers+text",
-            marker=dict(symbol="star",size=18,color=col,line=dict(color="#fff",width=1.4)),
-            text=[txt],textposition=pos,
-            textfont=dict(family="JetBrains Mono",size=9,color=col),
-            name=txt,
-            hovertemplate=f"<b>{txt}</b><br>Vol:%{{x:.1f}}%<extra></extra>",
-        ))
-    apply_layout(fig_ef, h=375,
-                 xaxis_title="Annualised Volatility (%)",
-                 yaxis_title="Expected Return (%)",
-                 xaxis=dict(ticksuffix="%",showgrid=False),
-                 yaxis=dict(ticksuffix="%",gridcolor="rgba(79,142,247,0.06)"),
-                 legend=dict(orientation="v",x=0.01,y=0.99,
-                             xanchor="left",yanchor="top",font=dict(size=10)))
-    st.plotly_chart(fig_ef, width='stretch', config={"displayModeBar": False})
+    sec_header(
+        "Monte Carlo Efficient Frontier",
+        badge=f"{len(frontier_df):,} SIMULATIONS",
+        color="#A78BFA",
+        info_id="info-ef",
+        info_html="""
+<h4>◎ Dynamic Monte Carlo Efficient Frontier</h4>
+<p>Thousands of random Dirichlet-weighted portfolios mapped in risk-return space using the active covariance matrix for the selected time window.</p>
+<p>• <b style="color:#34D399;">★ Green Star</b> = Max Sharpe Tangency Portfolio<br>
+• <b style="color:#38BDF8;">◆ Blue Diamond</b> = Global Minimum Volatility Portfolio<br>
+• <b style="color:#A78BFA;">● Violet Circle</b> = 1/N Equal Weight Baseline<br>
+• <b style="color:#FBBF24;">-- Yellow Dashed</b> = Capital Allocation Line (CAL) from Rf</p>
+""",
+    )
 
-with col_sh:
-    sec_header("LightGBM Allocation Drivers", badge="LIVE SHAP", color="#22D3EE",
-               info_id="info-shap", info_html="""
-<h4>⚡ SHAP Feature Importance</h4>
-<p>SHAP values decompose the model's current allocation decision into individual feature
-contributions. <b style="color:#34D399;">Green</b> = increases risk allocation;
-<b style="color:#FB7185;">Red</b> = reduces risk allocation.</p>
-<p>Features include macro signals, momentum factors, and cross-asset correlation metrics
-updated in real-time by the LightGBM scoring pipeline.</p>
-<span class="eq">SHAP: phi_i = E[f(x)] with feature i vs without feature i</span>
-""")
-    sd = shap_df.sort_values("v")
-    fig_sh = go.Figure()
-    fig_sh.add_trace(go.Bar(
-        x=sd["v"], y=sd["f"], orientation="h",
-        marker=dict(color=["#FB7185" if v<0 else "#34D399" for v in sd["v"]],
-                    opacity=0.82, line=dict(width=0)),
-        text=[f"{v:+.3f}" for v in sd["v"]],
-        textposition="outside",
-        textfont=dict(family="JetBrains Mono",size=10,color="#E2E8F0"),
-        hovertemplate="<b>%{y}</b><br>SHAP: %{x:+.4f}<extra></extra>",
+    fig_ef = go.Figure()
+
+    # Cloud of simulated portfolios
+    fig_ef.add_trace(go.Scatter(
+        x=frontier_df["v"] * 100,
+        y=frontier_df["r"] * 100,
+        mode="markers",
+        marker=dict(
+            color=frontier_df["s"],
+            colorscale="Viridis",
+            size=3.5,
+            opacity=0.45,
+            colorbar=dict(
+                title=dict(text="Sharpe", font=dict(family="JetBrains Mono", size=10, color="#64748B")),
+                tickfont=dict(family="JetBrains Mono", size=8, color="#64748B"),
+                thickness=8, len=0.6,
+            ),
+        ),
+        name="Random Portfolios",
+        hovertemplate="Vol: %{x:.2f}%<br>Return: %{y:.2f}%<br>Sharpe: %{marker.color:.2f}<extra></extra>",
     ))
-    fig_sh.add_vline(x=0, line_color="#334155", line_width=1.5)
-    apply_layout(fig_sh, h=375,
-                 xaxis_title="SHAP Value",
-                 yaxis=dict(showgrid=False,tickfont=dict(family="Plus Jakarta Sans",size=10)),
-                 xaxis=dict(showgrid=True,gridcolor="rgba(79,142,247,0.06)"),
-                 showlegend=False, margin=dict(l=170,r=60,t=38,b=40))
-    st.plotly_chart(fig_sh, width='stretch', config={"displayModeBar": False})
+
+    # Capital Allocation Line (CAL)
+    cal_max_vol = max(ms_vol * 1.35, 0.35)
+    cal_x = [0.0, cal_max_vol * 100]
+    cal_y = [rf_rate * 100, (rf_rate + ms_sharpe * cal_max_vol) * 100]
+    fig_ef.add_trace(go.Scatter(
+        x=cal_x, y=cal_y,
+        mode="lines",
+        line=dict(color="#FBBF24", width=1.8, dash="dash"),
+        name=f"CAL (Rf={rf_rate_pct:.1f}%)",
+        hovertemplate="Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra>CAL</extra>",
+    ))
+
+    # Optimal Markers
+    fig_ef.add_trace(go.Scatter(
+        x=[ms_vol * 100], y=[ms_ret * 100],
+        mode="markers+text",
+        marker=dict(symbol="star", size=18, color="#34D399", line=dict(color="#FFFFFF", width=1.5)),
+        text=[" Max Sharpe"], textposition="top right",
+        textfont=dict(family="JetBrains Mono", size=10, color="#34D399"),
+        name=f"Max Sharpe (SR={ms_sharpe:.2f})",
+        hovertemplate="<b>Max Sharpe Portfolio</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<br>Sharpe: " + f"{ms_sharpe:.2f}<extra></extra>",
+    ))
+
+    fig_ef.add_trace(go.Scatter(
+        x=[mv_vol * 100], y=[mv_ret * 100],
+        mode="markers+text",
+        marker=dict(symbol="diamond", size=13, color="#38BDF8", line=dict(color="#FFFFFF", width=1.2)),
+        text=[" Min Vol"], textposition="bottom right",
+        textfont=dict(family="JetBrains Mono", size=10, color="#38BDF8"),
+        name=f"Min Vol (σ={mv_vol*100:.1f}%)",
+        hovertemplate="<b>Min Volatility Portfolio</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra></extra>",
+    ))
+
+    fig_ef.add_trace(go.Scatter(
+        x=[ew_vol * 100], y=[ew_ret * 100],
+        mode="markers+text",
+        marker=dict(symbol="circle", size=11, color="#A78BFA", line=dict(color="#FFFFFF", width=1.2)),
+        text=[" Equal Weight"], textposition="top left",
+        textfont=dict(family="JetBrains Mono", size=9, color="#A78BFA"),
+        name="Equal Weight (1/N)",
+        hovertemplate="<b>1/N Equal Weight</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra></extra>",
+    ))
+
+    apply_layout(
+        fig_ef, h=390,
+        xaxis_title="Annualized Volatility (%)",
+        yaxis_title="Annualized Expected Return (%)",
+        xaxis=dict(ticksuffix="%", showgrid=False),
+        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)"),
+        legend=dict(orientation="v", x=0.02, y=0.98, xanchor="left", yanchor="top", font=dict(size=9.5)),
+    )
+    st.plotly_chart(fig_ef, width="stretch", config={"displayModeBar": False})
+
+with col_alloc:
+    sec_header(
+        "Optimal Asset Allocation Breakdown",
+        badge=f"{len([k for k, v in ms_weights.items() if v > 0])} ALLOCATED",
+        color="#34D399",
+        info_id="info-alloc",
+        info_html="""
+<h4>◉ Dynamic Max Sharpe Weights</h4>
+<p>Optimal weight distribution computed by PyPortfolioOpt specifically for the chosen time horizon.</p>
+<p>Weights are rounded to 4 decimals, with positions below 0.01% filtered out to avoid transaction dust.</p>
+""",
+    )
+
+    # Sort allocations for visualization
+    top_tickers = [t for t in active_tickers if ms_weights.get(t, 0) > 0.005 or mv_weights.get(t, 0) > 0.03]
+    top_tickers.sort(key=lambda t: max(ms_weights.get(t, 0), mv_weights.get(t, 0)), reverse=True)
+
+    if not top_tickers:
+        top_tickers = active_tickers[:10]
+
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(
+        x=top_tickers,
+        y=[ms_weights.get(t, 0.0) * 100 for t in top_tickers],
+        name="Max Sharpe",
+        marker_color="#34D399",
+        hovertemplate="<b>%{x}</b><br>Max Sharpe: %{y:.2f}%<extra></extra>",
+    ))
+    fig_bar.add_trace(go.Bar(
+        x=top_tickers,
+        y=[mv_weights.get(t, 0.0) * 100 for t in top_tickers],
+        name="Min Volatility",
+        marker_color="#38BDF8",
+        hovertemplate="<b>%{x}</b><br>Min Vol: %{y:.2f}%<extra></extra>",
+    ))
+    fig_bar.add_trace(go.Bar(
+        x=top_tickers,
+        y=[ew_weights.get(t, 0.0) * 100 for t in top_tickers],
+        name="Equal Weight",
+        marker_color="#A78BFA",
+        hovertemplate="<b>%{x}</b><br>Equal Weight: %{y:.2f}%<extra></extra>",
+    ))
+
+    apply_layout(
+        fig_bar, h=390,
+        barmode="group",
+        yaxis_title="Weight (%)",
+        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)"),
+        xaxis=dict(showgrid=False, tickangle=-40, tickfont=dict(size=9.5, family="JetBrains Mono")),
+        legend=dict(orientation="h", x=1.0, y=1.02, xanchor="right", font=dict(size=9.5)),
+    )
+    st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": False})
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ROW 4 — ROLLING RISK + CORRELATION
+# 7. ROW 4 — ROLLING RISK & CORRELATION MATRIX
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-risk")
-col_rv, col_hm = st.columns([1.1,0.9], gap="large")
+col_rv, col_corr = st.columns([1.05, 0.95], gap="large")
 
 with col_rv:
-    sec_header("Rolling Risk Decomposition", badge="DYNAMIC", color="#34D399",
-               info_id="info-risk", info_html="""
-<h4>⚡ Rolling Volatility Decomposition</h4>
-<p>Realised portfolio volatility on <b style="color:#4F8EF7;">21-day</b> (responsive) and
-<b style="color:#A78BFA;">63-day</b> (stable) rolling windows, annualised by ×√252.
-The <b style="color:#FB7185;">dashed line</b> is your volatility target; the band above is the breach zone.</p>
-<p>The optimizer uses the 63-day estimate as a hard constraint. Breaches trigger automatic
-portfolio rebalancing toward lower-risk assets.</p>
-<span class="eq">σ_ann = σ_daily × √252 &nbsp;·&nbsp; EWMA alternative configurable</span>
-""")
-    fig_rv = go.Figure()
-    fig_rv.add_trace(go.Scatter(x=risk_df["Date"],y=risk_df["v21"],name="21d Realised Vol",
-        line=dict(color="#4F8EF7",width=2.2),
-        hovertemplate="21d: <b>%{y:.1f}%</b><extra></extra>"))
-    fig_rv.add_trace(go.Scatter(x=risk_df["Date"],y=risk_df["v63"],name="63d Realised Vol",
-        line=dict(color="#A78BFA",width=2.2,dash="dash"),
-        hovertemplate="63d: <b>%{y:.1f}%</b><extra></extra>"))
-    fig_rv.add_hrect(y0=risk_tol,y1=risk_tol+5,fillcolor="rgba(251,113,133,0.05)",line_width=0)
-    fig_rv.add_hline(y=risk_tol,line=dict(color="#FB7185",width=1.5,dash="dot"),
-                     annotation_text=f"Target {risk_tol}%",annotation_position="right",
-                     annotation_font=dict(color="#FB7185",size=9,family="JetBrains Mono"))
-    apply_layout(fig_rv,h=318,
-                 yaxis=dict(ticksuffix="%",gridcolor="rgba(79,142,247,0.06)"),
-                 xaxis=dict(showgrid=False),hovermode="x unified")
-    st.plotly_chart(fig_rv, width='stretch', config={"displayModeBar": False})
+    sec_header(
+        "Realized Rolling Volatility",
+        badge="21D & 63D WINDOWS",
+        color="#34D399",
+        info_id="info-vol",
+        info_html="""
+<h4>⚡ Realized Rolling Risk</h4>
+<p>Rolling volatility computed directly on the real historical returns of the Max Sharpe portfolio across the selected window:</p>
+<p>• <b style="color:#4F8EF7;">21-Day Window</b> — High-responsiveness short-term volatility<br>
+• <b style="color:#A78BFA;">63-Day Window</b> — Quarterly structural volatility trend</p>
+""",
+    )
 
-with col_hm:
-    sec_header("Asset Correlation Matrix", badge=f"{len(selected_assets)} ASSETS",
-               color="#22D3EE", info_id="info-corr", info_html="""
-<h4>◈ Asset Correlation Matrix</h4>
-<p>Pairwise Pearson correlations on rolling 252-day windows.
-<b style="color:#4F8EF7;">Blue (+1.0)</b> = high co-movement;
-<b style="color:#FB7185;">Red (−1.0)</b> = inverse relationship.</p>
-<p>Low inter-asset correlation is the foundation of Markowitz diversification.
-The optimizer exploits these relationships to construct efficient portfolios.</p>
-<span class="eq">ρ(X,Y) = Cov(X,Y) / (σ_X × σ_Y) ∈ [−1, 1]</span>
-""")
-    fig_hm = go.Figure(go.Heatmap(
-        z=corr_df.values, x=list(corr_df.columns), y=list(corr_df.index),
-        colorscale=[[0,"#FB7185"],[0.25,"#5B1A28"],[0.5,"#0A0F1E"],[0.75,"#1E3A5F"],[1,"#4F8EF7"]],
-        zmin=-1, zmax=1,
-        text=np.round(corr_df.values,2), texttemplate="%{text:.2f}",
-        textfont=dict(size=8,family="JetBrains Mono",color="#E2E8F0"),
-        hovertemplate="%{y} vs %{x}<br>rho = <b>%{z:.3f}</b><extra></extra>",
-        colorbar=dict(title=dict(text="rho",font=dict(size=11,color="#64748B")),
-                      tickfont=dict(family="JetBrains Mono",size=9,color="#64748B"),
-                      thickness=9,len=0.8),
+    roll_window_short = min(21, max(3, len(ret_ms_series) // 4))
+    roll_window_long  = min(63, max(5, len(ret_ms_series) // 2))
+
+    vol_21 = ret_ms_series.rolling(roll_window_short).std() * np.sqrt(252) * 100
+    vol_63 = ret_ms_series.rolling(roll_window_long).std() * np.sqrt(252) * 100
+
+    fig_rv = go.Figure()
+    fig_rv.add_trace(go.Scatter(
+        x=vol_21.index, y=vol_21.values, name=f"{roll_window_short}d Realized Vol",
+        line=dict(color="#4F8EF7", width=2.2),
+        hovertemplate="%{x|%d %b %Y}<br>21d Vol: <b>%{y:.1f}%</b><extra></extra>",
     ))
-    apply_layout(fig_hm,h=318,
-                 xaxis=dict(showgrid=False,tickfont=dict(size=9,family="JetBrains Mono"),tickangle=-45),
-                 yaxis=dict(showgrid=False,tickfont=dict(size=9,family="JetBrains Mono")),
-                 margin=dict(l=8,r=58,t=38,b=62),showlegend=False)
-    st.plotly_chart(fig_hm, width='stretch', config={"displayModeBar": False})
+    fig_rv.add_trace(go.Scatter(
+        x=vol_63.index, y=vol_63.values, name=f"{roll_window_long}d Realized Vol",
+        line=dict(color="#A78BFA", width=2.0, dash="dash"),
+        hovertemplate="%{x|%d %b %Y}<br>63d Vol: <b>%{y:.1f}%</b><extra></extra>",
+    ))
+    fig_rv.add_hline(
+        y=ms_vol * 100, line=dict(color="#34D399", width=1.5, dash="dot"),
+        annotation_text=f"Sample Vol ({ms_vol*100:.1f}%)", annotation_position="right",
+        annotation_font=dict(color="#34D399", size=9, family="JetBrains Mono"),
+    )
+
+    apply_layout(
+        fig_rv, h=325,
+        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)"),
+        xaxis=dict(showgrid=False),
+        hovermode="x unified",
+    )
+    st.plotly_chart(fig_rv, width="stretch", config={"displayModeBar": False})
+
+with col_corr:
+    sec_header(
+        "Pairwise Correlation Matrix",
+        badge="REAL TIME-WINDOW COV",
+        color="#22D3EE",
+        info_id="info-corr",
+        info_html="""
+<h4>◈ Cross-Asset Pearson Correlation</h4>
+<p>Pairwise return correlations for the primary stocks in your selection, computed across this specific time slice.</p>
+""",
+    )
+
+    # Pick top 12 assets to keep heatmap clean and readable
+    corr_assets = top_tickers[:12] if len(top_tickers) >= 4 else active_tickers[:12]
+    corr_matrix = daily_rets[corr_assets].corr()
+
+    fig_hm = go.Figure(go.Heatmap(
+        z=corr_matrix.values,
+        x=list(corr_matrix.columns),
+        y=list(corr_matrix.index),
+        colorscale=[[0, "#FB7185"], [0.35, "#3B1B26"], [0.5, "#0A0F1E"], [0.75, "#1E3A5F"], [1, "#4F8EF7"]],
+        zmin=-0.3, zmax=1.0,
+        text=np.round(corr_matrix.values, 2),
+        texttemplate="%{text:.2f}",
+        textfont=dict(size=8, family="JetBrains Mono", color="#E2E8F0"),
+        hovertemplate="%{y} vs %{x}<br>Correlation: <b>%{z:.3f}</b><extra></extra>",
+        colorbar=dict(
+            title=dict(text="ρ", font=dict(size=10, color="#64748B")),
+            tickfont=dict(family="JetBrains Mono", size=8, color="#64748B"),
+            thickness=8, len=0.8,
+        ),
+    ))
+
+    apply_layout(
+        fig_hm, h=325,
+        xaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono"), tickangle=-45),
+        yaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono")),
+        margin=dict(l=5, r=40, t=35, b=50),
+        showlegend=False,
+    )
+    st.plotly_chart(fig_hm, width="stretch", config={"displayModeBar": False})
 
 st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ROW 5 — ALLOCATION DONUT + DRAWDOWN
+# 8. ROW 5 — ALLOCATION DONUT + HISTORICAL DRAWDOWN
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-portfolio")
-col_pie, col_dd = st.columns([0.82,1.18], gap="large")
+col_donut, col_dd = st.columns([0.85, 1.15], gap="large")
 
-with col_pie:
-    sec_header("Current ML Allocation", badge="OPTIMAL", color="#4F8EF7",
-               info_id="info-alloc", info_html="""
-<h4>◉ Current ML Portfolio Weights</h4>
-<p>Optimal weights output by the LightGBM allocation model for the current market regime.
-Constraints: min 2% per asset, max 40%, Σwᵢ = 100%. Rebalanced <b>weekly</b>.</p>
-<p>The model uses regime classification plus factor signals (momentum, value, quality)
-to dynamically tilt toward higher-conviction positions.</p>
-<span class="eq">w* = argmax CAGR &nbsp; s.t. &nbsp; σ_p ≤ target, Σwᵢ = 1, wᵢ ≥ 0</span>
-""")
-    np.random.seed(55)
-    wts = np.random.dirichlet(np.ones(len(selected_assets))*2)
-    adf = pd.DataFrame({"a":selected_assets,"w":wts}).sort_values("w",ascending=False)
-    fig_pie = go.Figure(go.Pie(
-        labels=adf["a"], values=adf["w"], hole=0.64,
-        marker=dict(colors=PALETTE[:len(selected_assets)],line=dict(color="#050813",width=2)),
-        textinfo="label+percent",
-        textfont=dict(family="JetBrains Mono",size=9,color="#E2E8F0"),
-        hovertemplate="<b>%{label}</b><br>%{percent}<extra></extra>",
-        direction="clockwise", sort=True,
-    ))
-    fig_pie.add_annotation(
-        text=f"<b>{len(selected_assets)}</b><br><span style='font-size:9px;color:#64748B'>ASSETS</span>",
-        x=0.5,y=0.5,showarrow=False,
-        font=dict(family="JetBrains Mono",size=20,color="#E2E8F0"),
+with col_donut:
+    sec_header(
+        "Max Sharpe Allocation Composition",
+        badge="ACTIVE HOLDINGS",
+        color="#34D399",
+        info_id="info-pie",
+        info_html="""
+<h4>◉ Portfolio Allocation Composition</h4>
+<p>Proportional allocation of capital among surviving stocks under the Max Sharpe objective function.</p>
+""",
     )
-    apply_layout(fig_pie,h=320,showlegend=False,margin=dict(l=8,r=8,t=38,b=8))
-    st.plotly_chart(fig_pie, width='stretch', config={"displayModeBar": False})
+
+    non_zero_alloc = {k: v for k, v in ms_weights.items() if v > 0.001}
+    if not non_zero_alloc:
+        non_zero_alloc = {t: round(1.0 / len(active_tickers), 4) for t in active_tickers[:8]}
+
+    donut_df = pd.DataFrame(list(non_zero_alloc.items()), columns=["ticker", "weight"]).sort_values("weight", ascending=False)
+
+    PALETTE = ["#34D399", "#4F8EF7", "#FBBF24", "#FB7185", "#A78BFA",
+               "#22D3EE", "#F97316", "#E879F9", "#38BDF8", "#84CC16", "#FCD34D", "#6EE7B7"]
+
+    fig_pie = go.Figure(go.Pie(
+        labels=donut_df["ticker"],
+        values=donut_df["weight"],
+        hole=0.62,
+        marker=dict(colors=PALETTE[:len(donut_df)], line=dict(color="#050813", width=2)),
+        textinfo="label+percent",
+        textfont=dict(family="JetBrains Mono", size=9.5, color="#E2E8F0"),
+        hovertemplate="<b>%{label}</b><br>Weight: %{percent}<extra></extra>",
+        direction="clockwise",
+        sort=True,
+    ))
+
+    fig_pie.add_annotation(
+        text=f"<b>{len(donut_df)}</b><br><span style='font-size:9px;color:#64748B'>STOCKS</span>",
+        x=0.5, y=0.5, showarrow=False,
+        font=dict(family="JetBrains Mono", size=19, color="#E2E8F0"),
+    )
+
+    apply_layout(fig_pie, h=330, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
+    st.plotly_chart(fig_pie, width="stretch", config={"displayModeBar": False})
 
 with col_dd:
-    sec_header("Drawdown Analysis", badge="UNDERWATER", color="#FB7185",
-               info_id="info-dd", info_html="""
-<h4>📉 Drawdown Analysis</h4>
-<p>The percentage decline from the previous all-time portfolio high at each point in time.
-At 0% the portfolio is at a new peak; deeper troughs represent larger unrealised losses from prior highs.</p>
-<p>The annotation marks the <b style="color:#FB7185;">Maximum Drawdown</b> — the single worst
-peak-to-trough decline during the entire backtest period.</p>
-<span class="eq">DD_t = (NAV_t − max_{τ≤t} NAV_τ) / max_{τ≤t} NAV_τ × 100</span>
-""")
-    rm  = eq_df["LightGBM Dynamic"].cummax()
-    dd  = (eq_df["LightGBM Dynamic"] - rm) / rm * 100
+    sec_header(
+        "Historical Underwater Drawdown (%)",
+        badge=f"MAX DD: {max_dd_ms:.1f}%",
+        color="#FB7185",
+        info_id="info-dd",
+        info_html="""
+<h4>📉 Peak-to-Trough Drawdown Analysis</h4>
+<p>Measures the continuous drawdown percentage from prior high-water marks for the Max Sharpe portfolio across this specific time horizon.</p>
+""",
+    )
+
     fig_dd = go.Figure()
     fig_dd.add_trace(go.Scatter(
-        x=eq_df["Date"],y=dd,
-        fill="tozeroy", fillcolor="rgba(251,113,133,0.09)",
-        line=dict(color="#FB7185",width=1.8),name="Drawdown",
-        hovertemplate="<b>Drawdown</b><br>%{x|%d %b %Y}<br>%{y:.2f}%<extra></extra>",
+        x=dd_ms_series.index, y=dd_ms_series.values,
+        fill="tozeroy", fillcolor="rgba(251,113,133,0.08)",
+        line=dict(color="#FB7185", width=1.8), name="Max Sharpe DD",
+        hovertemplate="%{x|%d %b %Y}<br>Drawdown: <b>%{y:.2f}%</b><extra></extra>",
     ))
-    mi = int(dd.idxmin())
-    fig_dd.add_annotation(
-        x=eq_df["Date"].iloc[mi], y=dd.iloc[mi],
-        text=f"Max DD: {dd.iloc[mi]:.1f}%",
-        showarrow=True,arrowhead=2,arrowcolor="#FB7185",
-        font=dict(color="#FB7185",size=10,family="JetBrains Mono"),
-        bgcolor="rgba(251,113,133,0.12)",bordercolor="#FB7185",
-        borderwidth=1,borderpad=4,ay=-38,
+
+    if len(dd_ms_series) > 0:
+        min_idx = dd_ms_series.idxmin()
+        fig_dd.add_annotation(
+            x=min_idx, y=dd_ms_series.loc[min_idx],
+            text=f"Trough: {max_dd_ms:.1f}%",
+            showarrow=True, arrowhead=2, arrowcolor="#FB7185",
+            font=dict(color="#FB7185", size=9.5, family="JetBrains Mono"),
+            bgcolor="rgba(251,113,133,0.12)", bordercolor="#FB7185",
+            borderwidth=1, borderpad=4, ay=-35,
+        )
+
+    apply_layout(
+        fig_dd, h=330,
+        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)", zeroline=True, zerolinecolor="#1E293B", zerolinewidth=1),
+        xaxis=dict(showgrid=False),
+        showlegend=False,
+        hovermode="x",
     )
-    apply_layout(fig_dd,h=320,
-                 yaxis=dict(ticksuffix="%",gridcolor="rgba(79,142,247,0.06)",
-                            zeroline=True,zerolinecolor="#1E293B",zerolinewidth=1),
-                 xaxis=dict(showgrid=False),showlegend=False,hovermode="x")
-    st.plotly_chart(fig_dd, width='stretch', config={"displayModeBar": False})
+    st.plotly_chart(fig_dd, width="stretch", config={"displayModeBar": False})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -845,11 +1295,11 @@ peak-to-trough decline during the entire backtest period.</p>
 st.markdown("""
 <div class="glow-div" style="margin-top:2.5rem;"></div>
 <div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 1.2rem 0;">
-  <span style="font-family:'JetBrains Mono',monospace;font-size:0.59rem;color:#1E293B;">
-    Portfolio Risk Engine &nbsp;·&nbsp; Mock Data &nbsp;·&nbsp; Backend Integration Pending
+  <span style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:#475569;">
+    Quantitative Portfolio Risk Engine &nbsp;·&nbsp; Real Backend Connected (PyPortfolioOpt) &nbsp;·&nbsp; NIFTY 50 Universe
   </span>
-  <span style="font-family:'JetBrains Mono',monospace;font-size:0.59rem;color:#1E293B;">
-    Streamlit + Plotly &nbsp;·&nbsp; IDSE Quant Lab © 2025
+  <span style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:#475569;">
+    Streamlit + Plotly &nbsp;·&nbsp; IDSE Quant Lab © 2026
   </span>
 </div>
 """, unsafe_allow_html=True)
