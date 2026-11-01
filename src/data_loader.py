@@ -276,6 +276,207 @@ class LocalDataLoader:
         return master
 
 
+    # ------------------------------------------------------------------ #
+    # Portfolio-wide asset matrix
+    # ------------------------------------------------------------------ #
+    def load_all_portfolio_assets(
+        self,
+        data_dir: str,
+        missing_threshold: float = 0.30,
+    ) -> pd.DataFrame:
+        """Dynamically ingest every per-ticker CSV in *data_dir* and build a
+        single, institution-grade wide price matrix aligned by date.
+
+        Pipeline
+        --------
+        1. **Glob** – discover every ``*.csv`` file in *data_dir*; derive the
+           ticker symbol from the filename stem.
+        2. **Load** – extract ``Date`` and ``Close`` columns from each file,
+           parse ``Date`` → ``DatetimeIndex``, sort ascending, deduplicate.
+           Files that are empty or lack the required columns are skipped with
+           a warning.
+        3. **Outer-join** – merge all per-ticker Series into one wide DataFrame
+           keyed on the shared DatetimeIndex.  Using an outer join preserves
+           every trading day across the universe, regardless of IPO date.
+        4. **Column filter** – drop any ticker whose column is missing more
+           than *missing_threshold* (default 30 %) of all rows.  This cleanly
+           removes recent IPOs that would introduce spurious short histories
+           and distort long-run covariance estimates.
+        5. **Row trim** – drop leading rows where *any* surviving column is
+           still NaN (i.e. walk forward in time until every asset has a valid
+           opening price).  This sets the unified start date.
+        6. **Forward-fill** – apply ``ffill()`` to patch isolated daily gaps
+           caused by market holidays or exchange-specific closures.
+
+        Parameters
+        ----------
+        data_dir : str
+            Path to the folder containing per-ticker CSV files.
+            Each file must have at minimum ``Date`` and ``Close`` columns.
+        missing_threshold : float, optional
+            Maximum allowed fraction of missing rows per column.
+            Columns exceeding this threshold are dropped.  Default is ``0.30``.
+
+        Returns
+        -------
+        pd.DataFrame
+            Wide price matrix with a sorted ``DatetimeIndex``.
+            Columns are ticker symbols; values are adjusted close prices.
+
+        Raises
+        ------
+        FileNotFoundError
+            If *data_dir* does not exist.
+        ValueError
+            If no valid ticker files are found after filtering.
+        """
+        import glob
+        import os
+
+        data_path = Path(data_dir)
+        if not data_path.exists():
+            # Try resolving relative to repository root (parent of src/)
+            base_dir = Path(__file__).resolve().parent.parent
+            candidate = base_dir / data_dir
+            if candidate.exists():
+                data_path = candidate
+                data_dir = str(candidate)
+            elif (base_dir / "companies").exists() and ("raw" in data_dir or "companies" in data_dir):
+                data_path = base_dir / "companies"
+                data_dir = str(data_path)
+            else:
+                raise FileNotFoundError(f"Data directory not found: {data_path.resolve()}")
+
+        # ── Step 1: Discover all CSV files ─────────────────────────────── #
+        csv_files = sorted(glob.glob(os.path.join(str(data_path), "*.csv")))
+        log.info("Found %d CSV files in '%s'", len(csv_files), data_path)
+
+        # ── Steps 2 & 3: Load each ticker and outer-join ────────────────── #
+        series_list: list[pd.Series] = []
+        skipped: list[str] = []
+
+        # Known non-ticker files to exclude (e.g., aggregated / metadata CSVs)
+        _EXCLUDE_STEMS = {"nifty50_all", "stock_metadata"}
+
+        for fpath in csv_files:
+            ticker = Path(fpath).stem
+
+            # Skip aggregate / metadata files
+            if ticker.lower() in _EXCLUDE_STEMS:
+                log.debug("Skipping non-ticker file: %s", ticker)
+                continue
+
+            try:
+                raw = pd.read_csv(
+                    fpath,
+                    usecols=lambda c: c.strip() in ("Date", "Close"),
+                    dtype=str,
+                    na_values=["", " ", "-", "N/A"],
+                )
+
+                # Normalise column names
+                raw.columns = raw.columns.str.strip()
+
+                # Guard: require both Date and Close
+                if "Date" not in raw.columns or "Close" not in raw.columns:
+                    log.warning("Skipping '%s' — missing Date or Close column.", ticker)
+                    skipped.append(ticker)
+                    continue
+
+                # Must have at least 2 data rows
+                if len(raw.dropna(subset=["Close"])) < 2:
+                    log.warning("Skipping '%s' — insufficient data rows.", ticker)
+                    skipped.append(ticker)
+                    continue
+
+                # Parse and clean
+                raw["Date"] = pd.to_datetime(raw["Date"].str.strip(), errors="coerce")
+                raw["Close"] = (
+                    raw["Close"]
+                    .astype(str)
+                    .str.replace(",", "", regex=False)
+                    .str.strip()
+                    .pipe(pd.to_numeric, errors="coerce")
+                )
+
+                # Set DatetimeIndex, sort ascending, deduplicate
+                s: pd.Series = (
+                    raw.dropna(subset=["Date"])
+                       .set_index("Date")["Close"]
+                       .sort_index()
+                       .loc[lambda x: ~x.index.duplicated(keep="first")]
+                       .rename(ticker)
+                )
+
+                series_list.append(s)
+
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Skipping '%s' — error during load: %s", ticker, exc)
+                skipped.append(ticker)
+
+        if not series_list:
+            raise ValueError(
+                f"No valid ticker files found in '{data_dir}'. "
+                "Ensure CSVs contain at minimum 'Date' and 'Close' columns."
+            )
+
+        log.info(
+            "Successfully parsed %d tickers; %d skipped: %s",
+            len(series_list),
+            len(skipped),
+            skipped or "none",
+        )
+
+        # Outer join → wide DataFrame (all dates × all tickers)
+        prices: pd.DataFrame = pd.concat(series_list, axis=1, join="outer")
+        prices.index.name = "Date"
+        prices.sort_index(inplace=True)
+
+        log.info(
+            "Raw wide matrix: %d rows × %d columns",
+            prices.shape[0],
+            prices.shape[1],
+        )
+
+        # ── Step 4: Drop columns exceeding the missing data threshold ─────── #
+        missing_frac: pd.Series = prices.isna().mean()
+        survivors = missing_frac[missing_frac <= missing_threshold].index.tolist()
+        dropped_cols = missing_frac[missing_frac > missing_threshold].index.tolist()
+
+        if dropped_cols:
+            log.info(
+                "Dropping %d tickers (>%.0f%% missing): %s",
+                len(dropped_cols),
+                missing_threshold * 100,
+                dropped_cols,
+            )
+
+        prices = prices[survivors]
+
+        # ── Step 5: Trim leading rows where any surviving column is NaN ────── #
+        # Find the first date where ALL survivors have a valid price
+        first_valid_row = prices.dropna(how="any").index.min()
+        prices = prices.loc[first_valid_row:]
+
+        log.info(
+            "After trimming leading NaNs — start date: %s",
+            first_valid_row.date() if pd.notna(first_valid_row) else "N/A",
+        )
+
+        # ── Step 6: Forward-fill isolated holiday gaps ─────────────────────── #
+        prices = prices.ffill()
+
+        log.info(
+            "Final portfolio matrix: %d rows × %d columns | %s → %s",
+            prices.shape[0],
+            prices.shape[1],
+            prices.index.min().date(),
+            prices.index.max().date(),
+        )
+
+        return prices
+
+
 # =========================================================================== #
 # __main__ — quick smoke test
 # =========================================================================== #

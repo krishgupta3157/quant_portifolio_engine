@@ -77,10 +77,10 @@ def load_pipeline() -> pd.DataFrame:
     fe      = FeatureEngineer()
     df      = fe.build_features(master)
 
-    # Drop rolling warm-up NaNs (252-day windows → first ~year)
+    # Drop rolling warm-up NaNs (252-day windows -> first ~year)
     df = df.dropna(subset=["NIFTY_MA_252d", "Risk_Score"])
-    print(f"[EDA] Dataset ready — {len(df):,} rows  "
-          f"({df.index.min().date()} → {df.index.max().date()})")
+    print(f"[EDA] Dataset ready -- {len(df):,} rows  "
+          f"({df.index.min().date()} -> {df.index.max().date()})")
     return df
 
 
@@ -358,7 +358,7 @@ def print_crisis_summary(df: pd.DataFrame) -> None:
     print()
     print("  Crisis days by year:")
     for yr, cnt in by_year.items():
-        bar = "█" * min(cnt, 40)
+        bar = "#" * min(cnt, 40)
         print(f"    {yr}  {bar}  {cnt}")
 
     print()
@@ -372,7 +372,7 @@ def print_crisis_summary(df: pd.DataFrame) -> None:
     for score, days in dist.items():
         from features import _RISK_LABELS
         pct  = days / len(df) * 100
-        bar  = "█" * max(1, int(pct))
+        bar  = "#" * max(1, int(pct))
         lbl  = _RISK_LABELS.get(int(score), "")
         print(f"    [{score:>2}] {lbl:<16} {bar:<42} {days:>4d}d  ({pct:4.1f}%)")
 
@@ -396,7 +396,5 @@ if __name__ == "__main__":
         full_html=True,
         config={"scrollZoom": True, "displayModeBar": True},
     )
-    print(f"\n[EDA] Chart saved  →  {out_path}")
+    print(f"\n[EDA] Chart saved -> {out_path}")
     print(f"      Open this file in any browser to view it interactively.")
-    print(f"\n[EDA] Also launching in your default browser …")
-    fig.show()
