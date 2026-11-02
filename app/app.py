@@ -37,435 +37,604 @@ from data_loader import LocalDataLoader
 from optimization import PortfolioOptimizer
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CSS + NAVBAR + AMBIENT BLOBS
+# 1B. DRAWER STATE & SLIDE-OUT MECHANICS
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown("""
+if "show_settings_panel" not in st.session_state:
+    st.session_state.show_settings_panel = False
+
+def _open_settings_panel():
+    st.session_state.show_settings_panel = True
+
+def _close_settings_panel():
+    st.session_state.show_settings_panel = False
+
+is_panel_open = bool(st.session_state.get("show_settings_panel", False))
+panel_transform = "translateX(0)" if is_panel_open else "translateX(-105%)"
+backdrop_css = "opacity: 1; visibility: visible; pointer-events: auto;" if is_panel_open else "opacity: 0; visibility: hidden; pointer-events: none;"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CSS + NAVBAR + MODERN SLEEK DARK THEME
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-:root {
-  --bg:      #050813;
-  --surf:    #0A0F1E;
-  --bdr:     rgba(79,142,247,0.12);
-  --bdr-h:   rgba(79,142,247,0.32);
-  --blue:    #4F8EF7;
-  --violet:  #A78BFA;
-  --green:   #34D399;
-  --rose:    #FB7185;
-  --amber:   #FBBF24;
-  --cyan:    #22D3EE;
-  --txt:     #E2E8F0;
-  --muted:   #64748B;
-  --dim:     #1E293B;
-  --nav-h:   58px;
-}
+:root {{
+  --bg-app:     #121418;
+  --bg-card:    #252830;
+  --bg-card-sub:#1A1D24;
+  --bdr:        #3A3F4D;
+  --bdr-hover:  #38BDF8;
+  --primary:    #0284C7;
+  --primary-bg: rgba(56, 189, 248, 0.15);
+  --primary-dk: #0369A1;
+  --txt-dark:   #FFFFFF;
+  --txt-body:   #E2E8F0;
+  --txt-muted:  #94A3B8;
+  --green:      #10B981;
+  --green-bg:   rgba(16, 185, 129, 0.15);
+  --rose:       #F43F5E;
+  --rose-bg:    rgba(244, 63, 94, 0.15);
+  --amber:      #F59E0B;
+  --amber-bg:   rgba(245, 158, 11, 0.15);
+  --nav-h:      58px;
+}}
 
-*,*::before,*::after { box-sizing: border-box; }
+*, *::before, *::after {{ box-sizing: border-box; }}
 
-.stApp {
-  background: var(--bg) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
-  color: var(--txt) !important;
-}
+/* ── Global Background & Typography ── */
+.stApp {{
+  background: var(--bg-app) !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  color: var(--txt-body) !important;
+}}
 
-/* Dot-grid texture */
-.stApp::before {
-  content: '';
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background-image: radial-gradient(rgba(79,142,247,0.10) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 50%, transparent 100%);
-}
-
-/* Hide Streamlit menu and footer, but keep header and sidebar toggle interactive */
-#MainMenu, footer, div[data-testid="stToolbar"], div[data-testid="stDecoration"], div[data-testid="stStatusWidget"] {
+/* Hide default Streamlit clutter */
+#MainMenu, footer, div[data-testid="stToolbar"], div[data-testid="stDecoration"], div[data-testid="stStatusWidget"] {{
   display: none !important;
-}
+}}
 
-header[data-testid="stHeader"] {
+header[data-testid="stHeader"] {{
   background: transparent !important;
   height: var(--nav-h) !important;
-  z-index: 100000 !important;
+  z-index: 9999 !important;
   pointer-events: none !important;
   display: flex !important;
   align-items: center !important;
-  padding-left: 10px !important;
-}
+  padding-left: 12px !important;
+}}
 
-/* Ensure sidebar collapse & expand chevron buttons are always visible & prominent */
+/* Hide native Streamlit sidebar collapse control buttons */
 [data-testid="collapsedControl"],
-[data-testid="collapsedControl"] button,
-button[data-testid="stSidebarCollapseButton"] {
-  visibility: visible !important;
-  display: flex !important;
-  pointer-events: auto !important;
-  z-index: 100002 !important;
-  cursor: pointer !important;
-}
+button[data-testid="stSidebarCollapseButton"] {{
+  display: none !important;
+}}
 
-[data-testid="collapsedControl"] {
-  position: fixed !important;
-  top: 10px !important;
-  left: 12px !important;
-  background: rgba(10, 15, 30, 0.95) !important;
-  border: 1px solid rgba(79, 142, 247, 0.5) !important;
-  border-radius: 8px !important;
-  padding: 4px 8px !important;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7), 0 0 10px rgba(79, 142, 247, 0.3) !important;
-  transition: all 0.2s ease !important;
-}
+/* Main content spacing & breathing room - LOCKED: NEVER SHIFTS ON SIDEBAR TOGGLE */
+section.main,
+.block-container,
+div[data-testid="stAppViewContainer"] > section.main {{
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: calc(var(--nav-h) + 1.8rem) 3.2rem 4rem 3.2rem !important;
+  transition: none !important;
+}}
 
-[data-testid="collapsedControl"]:hover {
-  border-color: #4F8EF7 !important;
-  box-shadow: 0 4px 22px rgba(79, 142, 247, 0.5) !important;
-  transform: scale(1.05);
-}
-
-[data-testid="collapsedControl"] svg {
-  color: #4F8EF7 !important;
-  stroke: #4F8EF7 !important;
-  fill: #4F8EF7 !important;
-}
-
-.block-container {
-  padding: calc(var(--nav-h) + 1.2rem) 2.2rem 2.5rem 2.2rem !important;
-  max-width: 100% !important; position: relative; z-index: 1;
-}
-
-/* ── Ambient gradient blobs ── */
-.blob { position: fixed; border-radius: 50%; pointer-events: none; z-index: 0; }
-.blob-1 {
-  width: 700px; height: 700px; top: -220px; left: -180px;
-  background: radial-gradient(circle, rgba(79,142,247,0.10) 0%, transparent 65%);
-  filter: blur(70px); animation: blobFloat 14s ease-in-out infinite;
-}
-.blob-2 {
-  width: 550px; height: 550px; bottom: 5%; right: -120px;
-  background: radial-gradient(circle, rgba(167,139,250,0.08) 0%, transparent 65%);
-  filter: blur(70px); animation: blobFloat 18s ease-in-out infinite reverse;
-}
-.blob-3 {
-  width: 420px; height: 420px; top: 38%; left: 42%;
-  background: radial-gradient(circle, rgba(52,211,153,0.07) 0%, transparent 65%);
-  filter: blur(70px); animation: blobFloat 22s ease-in-out infinite 5s;
-}
-@keyframes blobFloat {
-  0%,100% { transform: translate(0,0) scale(1); }
-  33%      { transform: translate(38px,-42px) scale(1.07); }
-  66%      { transform: translate(-28px,30px) scale(0.93); }
-}
-
-/* ═══════ NAVBAR ═══════ */
-.qp-nav {
+/* ═══════ CLEAN PRO TOP NAVBAR ═══════ */
+.qp-nav {{
   position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
-  z-index: 9999; display: flex; align-items: center; padding: 0 2rem;
-  background: rgba(5,8,19,0.88);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border-bottom: 1px solid var(--bdr);
-}
-.qp-brand {
-  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.18em;
-  text-transform: uppercase; color: var(--muted); margin-right: 2.5rem;
-  flex-shrink: 0; white-space: nowrap;
-}
-.qp-brand .hi { color: var(--blue); }
-.qp-links { display: flex; gap: 0.2rem; flex: 1; }
-.nav-btn {
-  display: flex; align-items: center; gap: 0.38rem;
-  padding: 0.32rem 0.88rem; border-radius: 8px;
-  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
-  color: var(--muted); cursor: pointer; text-decoration: none;
-  transition: color 0.18s, background 0.18s, border-color 0.18s;
-  border: 1px solid transparent; background: none;
+  z-index: 9998; display: flex; align-items: center; padding: 0 2rem;
+  background: #181B22;
+  border-bottom: 2px solid #2E3440;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}}
+.qp-brand {{
+  font-size: 0.85rem; font-weight: 800; letter-spacing: 0.16em;
+  text-transform: uppercase; color: #FFFFFF; margin-left: 1rem; margin-right: 2.5rem;
+  flex-shrink: 0; white-space: nowrap; display: flex; align-items: center; gap: 0.5rem;
+}}
+.qp-brand .hi {{ color: #38BDF8; font-weight: 900; }}
+.qp-links {{
+  display: flex; gap: 0.6rem; align-items: center; flex: 1;
+}}
+.nav-btn {{
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.42rem 1.05rem; border-radius: 8px;
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em;
+  color: #94A3B8; text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent; background: transparent;
   white-space: nowrap; user-select: none;
-}
-.nav-btn:hover  { color: var(--txt); background: rgba(79,142,247,0.08); border-color: var(--bdr); }
-.nav-btn.active { color: var(--blue); background: rgba(79,142,247,0.13); border-color: rgba(79,142,247,0.28); }
-.nav-btn .ni { font-size: 0.8rem; opacity: 0.8; }
-.qp-right { margin-left: auto; display: flex; align-items: center; gap: 0.85rem; }
-.regime-chip {
-  display: flex; align-items: center; gap: 0.42rem;
-  padding: 0.22rem 0.72rem; border-radius: 20px;
-  font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; font-weight: 600;
-  background: rgba(52,211,153,0.10); border: 1px solid rgba(52,211,153,0.25);
-  color: var(--green); white-space: nowrap;
-}
-.rdot {
-  width: 5px; height: 5px; border-radius: 50%; background: var(--green);
-  animation: rdotPulse 1.6s infinite;
-}
-@keyframes rdotPulse {
-  0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
-  60%      { opacity:0.4; box-shadow: 0 0 0 5px rgba(52,211,153,0); }
-}
-
-/* ═══════ FLIP CARDS ═══════ */
-.flip-wrap {
-  perspective: 1200px; height: 184px;
-  cursor: pointer; user-select: none;
-}
-.flip-wrap:active { opacity: 0.92; }
-.flip-inner {
-  position: relative; width: 100%; height: 100%;
-  transform-style: preserve-3d;
-  transition: transform 0.65s cubic-bezier(0.35,0.15,0.15,1);
-}
-.flip-wrap.flipped .flip-inner { transform: rotateY(180deg); }
-.flip-face {
-  position: absolute; inset: 0;
-  backface-visibility: hidden; -webkit-backface-visibility: hidden;
-  border-radius: 16px; border: 1px solid var(--bdr);
-  transition: border-color 0.25s, box-shadow 0.25s;
-}
-.flip-front {
-  background: linear-gradient(145deg, rgba(10,15,35,0.97) 0%, rgba(6,10,22,0.95) 100%);
-  overflow: hidden; padding: 0 1.2rem 1rem 1.2rem;
-}
-.flip-back {
-  background: linear-gradient(145deg, rgba(10,18,48,0.98) 0%, rgba(7,12,32,0.97) 100%);
-  transform: rotateY(180deg);
-  padding: 1rem 1.2rem; display: flex; flex-direction: column;
-  border-color: rgba(79,142,247,0.18);
-}
-.flip-wrap:hover .flip-face {
-  border-color: var(--bdr-h);
-  box-shadow: 0 0 24px rgba(79,142,247,0.10), 0 8px 32px rgba(0,0,0,0.45);
-}
-.fc-bar { height: 2.5px; margin: 0 -1.2rem 0.85rem -1.2rem; }
-.fc-row1 { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.08rem; }
-.fc-lbl  { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.fc-ico  { font-size: 1.25rem; opacity: 0.2; }
-.fc-val  { font-family: 'JetBrains Mono', monospace; font-size: 1.95rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; margin-bottom: 0.38rem; }
-.fc-dlt  { font-family: 'JetBrains Mono', monospace; font-size: 0.67rem; color: var(--muted); }
-.fc-dlt .up   { color: var(--green); }
-.fc-dlt .down { color: var(--rose);  }
-.fc-hint { position: absolute; bottom: 0.6rem; right: 0.85rem; font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; color: #334155; letter-spacing: 0.08em; text-transform: uppercase; }
-.fc-back-tag  { font-size: 0.57rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.35rem; }
-.fc-back-name { font-size: 0.84rem; font-weight: 700; color: var(--txt); margin-bottom: 0.45rem; }
-.fc-back-desc { font-size: 0.69rem; color: #94A3B8; line-height: 1.6; flex: 1; }
-.fc-back-eq   { font-family: 'JetBrains Mono', monospace; font-size: 0.59rem; color: var(--cyan); background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.14); border-radius: 6px; padding: 0.28rem 0.6rem; margin-top: 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Color helpers */
-.c-blue   { color: #4F8EF7 !important; }
-.c-green  { color: #34D399 !important; }
-.c-rose   { color: #FB7185 !important; }
-.c-amber  { color: #FBBF24 !important; }
-.c-violet { color: #A78BFA !important; }
-
-/* ═══════ SECTION HEADERS & INFO ═══════ */
-.sec-anchor { scroll-margin-top: calc(var(--nav-h) + 18px); display: block; }
-.sec-hdr { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.8rem; }
-.sec-left { display: flex; align-items: center; gap: 0.55rem; flex: 1; }
-.sec-pip  { width: 3px; height: 16px; border-radius: 2px; flex-shrink: 0; }
-.sec-title { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
-.sec-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; font-weight: 600; padding: 2px 9px; border-radius: 20px; background: rgba(79,142,247,0.09); border: 1px solid rgba(79,142,247,0.2); color: var(--blue); }
-.info-btn {
-  width: 22px; height: 22px; border-radius: 50%;
-  border: 1px solid var(--bdr); background: rgba(79,142,247,0.05);
-  color: var(--muted); cursor: pointer; font-size: 0.7rem;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.18s; flex-shrink: 0; padding: 0; font-weight: 700;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-}
-.info-btn:hover { border-color: var(--blue); color: var(--blue); background: rgba(79,142,247,0.1); }
-
-.info-panel {
-  background: rgba(8,13,32,0.97); border: 1px solid rgba(79,142,247,0.18);
-  border-radius: 12px; padding: 0.9rem 1.15rem; margin-bottom: 0.85rem; display: none;
-}
-.info-panel.open { display: block; animation: ipSlide 0.22s ease; }
-@keyframes ipSlide {
-  from { opacity:0; transform:translateY(-7px); }
-  to   { opacity:1; transform:translateY(0); }
-}
-.info-panel h4 { font-size: 0.75rem; font-weight: 800; color: var(--blue); margin: 0 0 0.42rem 0; letter-spacing: 0.04em; }
-.info-panel p  { font-size: 0.71rem; color: #94A3B8; line-height: 1.65; margin: 0 0 0.42rem 0; }
-.info-panel .eq { font-family: 'JetBrains Mono', monospace; font-size: 0.63rem; color: var(--cyan); background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.13); border-radius: 6px; padding: 0.32rem 0.65rem; display: inline-block; margin-top: 0.1rem; }
-
-/* Glow divider */
-.glow-div { height: 1px; margin: 0.2rem 0 1.6rem 0; background: linear-gradient(90deg, transparent, rgba(79,142,247,0.3) 30%, rgba(167,139,250,0.15) 65%, transparent); }
-
-/* Hero */
-.hero-wrap { padding: 0.3rem 0 0.8rem 0; }
-.hero-title { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.025em; background: linear-gradient(115deg, #E2E8F0 0%, #4F8EF7 55%, #A78BFA 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin: 0 0 0.22rem 0; line-height: 1.15; }
-.hero-sub  { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--muted); margin: 0 0 0.65rem 0; }
-.hero-chips { display: flex; gap: 1.2rem; flex-wrap: wrap; }
-.hero-chip  { font-family: 'JetBrains Mono', monospace; font-size: 0.63rem; color: var(--muted); display: flex; align-items: center; gap: 0.32rem; }
-.hero-chip .cd { width: 5px; height: 5px; border-radius: 50%; }
-
-/* Sidebar and toggle button styles */
-.nav-sidebar-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.34rem 0.82rem;
-  border-radius: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #4F8EF7;
-  background: rgba(79, 142, 247, 0.12);
-  border: 1px solid rgba(79, 142, 247, 0.35);
-  cursor: pointer;
-  transition: all 0.18s ease;
-  user-select: none;
-  white-space: nowrap;
-}
-.nav-sidebar-btn:hover {
-  background: rgba(79, 142, 247, 0.22);
-  border-color: #4F8EF7;
-  box-shadow: 0 0 12px rgba(79, 142, 247, 0.35);
+}}
+.nav-btn:hover {{
+  color: #38BDF8; background: rgba(56, 189, 248, 0.12);
+  border-color: #0284C7;
   transform: translateY(-1px);
-}
+}}
+.nav-btn.active {{
+  color: #FFFFFF !important;
+  background: #0284C7 !important;
+  border-color: #38BDF8 !important;
+  box-shadow: 0 3px 12px rgba(2, 132, 199, 0.35);
+}}
+.nav-btn .ni {{ font-size: 0.82rem; opacity: 0.9; }}
 
-/* On-page segmented control for time horizon */
-[data-testid="stSegmentedControl"] {
-  background: rgba(10, 15, 30, 0.75) !important;
-  border: 1px solid rgba(79, 142, 247, 0.22) !important;
+/* ═══════ OFF-CANVAS SETTINGS DRAWER ═══════ */
+section[data-testid="stSidebar"],
+div[data-testid="stSidebarContent"],
+div[data-testid="stSidebarUserContent"] {{
+  background-color: #252830 !important;
+  color: #E2E8F0 !important;
+}}
+
+section[data-testid="stSidebar"] {{
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important;
+  height: 100vh !important;
+  width: 480px !important;
+  max-width: 90vw !important;
+  z-index: 1000000 !important;
+  background-color: #252830 !important;
+  border-right: 1px solid #3A3F4D !important;
+  box-shadow: 16px 0 50px rgba(0, 0, 0, 0.75) !important;
+  transform: {panel_transform} !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  overflow-y: auto !important;
+  display: block !important;
+  visibility: visible !important;
+}}
+
+div[data-testid="stSidebarContent"] {{
+  padding: 1.4rem 1.4rem 2.5rem 1.4rem !important;
+}}
+
+[data-testid="stSidebar"] * {{
+  font-family: 'Plus Jakarta Sans', sans-serif !important;
+}}
+
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] b,
+[data-testid="stSidebar"] h3 {{
+  color: #E2E8F0 !important;
+}}
+
+[data-testid="stSidebar"] [data-baseweb="select"] > div {{
+  background: #1A1D24 !important;
+  border: 1px solid #3A3F4D !important;
+  border-radius: 8px !important;
+  color: #FFFFFF !important;
+}}
+
+[data-testid="stSidebar"] [data-baseweb="tag"] {{
+  background: rgba(56, 189, 248, 0.2) !important;
+  border: 1px solid #0284C7 !important;
+  color: #38BDF8 !important;
+  border-radius: 6px !important;
+  font-weight: 700 !important;
+  font-size: 0.74rem !important;
+}}
+
+[data-testid="stSidebar"] [data-baseweb="tag"] span {{
+  color: #38BDF8 !important;
+}}
+
+/* BaseWeb Dropdown Menus in Dark Theme */
+div[data-baseweb="popover"],
+div[data-baseweb="menu"],
+ul[role="listbox"] {{
+  background-color: #1A1D24 !important;
+  border: 1px solid #3A3F4D !important;
+  color: #E2E8F0 !important;
+}}
+
+li[role="option"] {{
+  background-color: #1A1D24 !important;
+  color: #E2E8F0 !important;
+}}
+
+li[role="option"]:hover,
+li[aria-selected="true"] {{
+  background-color: #252830 !important;
+  color: #38BDF8 !important;
+}}
+
+/* Semi-transparent dark backdrop overlay */
+.settings-backdrop {{
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 12, 16, 0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 999990;
+  {backdrop_css}
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+/* ═══════ BUTTON ANIMATIONS & ELEVATED PRO LOOK ═══════ */
+[data-testid="stButton"] button {{
+  border-radius: 8px !important;
+  border: 1px solid #3A3F4D !important;
+  background: #252830 !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  font-size: 0.78rem !important;
+  padding: 0.45rem 1rem !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}}
+
+[data-testid="stButton"] button:hover {{
+  border-color: #38BDF8 !important;
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #38BDF8 !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.30) !important;
+}}
+
+[data-testid="stButton"] button:active {{
+  transform: scale(0.98) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}}
+
+[data-testid="stSidebar"] [data-testid="stButton"] button {{
+  background: #1A1D24 !important;
+  border: 1px solid #3A3F4D !important;
+  color: #FFFFFF !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+  padding: 0.45rem 0.6rem !important;
+}}
+
+[data-testid="stSidebar"] [data-testid="stButton"] button:hover {{
+  background: rgba(56, 189, 248, 0.2) !important;
+  border-color: #38BDF8 !important;
+  color: #38BDF8 !important;
+  transform: translateY(-1px) !important;
+}}
+
+/* ═══════ TIME HORIZON TOOLBAR ═══════ */
+[data-testid="stSegmentedControl"] {{
+  background: #252830 !important;
+  border: 1px solid #3A3F4D !important;
   border-radius: 10px !important;
-  padding: 3px !important;
-  gap: 2px !important;
-}
-[data-testid="stSegmentedControl"] button {
+  padding: 4px !important;
+  gap: 4px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}}
+
+[data-testid="stSegmentedControl"] button {{
   background: transparent !important;
   color: #94A3B8 !important;
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.74rem !important;
+  font-size: 0.75rem !important;
   font-weight: 600 !important;
   border: 1px solid transparent !important;
   border-radius: 7px !important;
-  padding: 0.38rem 0.9rem !important;
-  transition: all 0.18s ease !important;
-}
-[data-testid="stSegmentedControl"] button:hover {
-  color: #E2E8F0 !important;
-  background: rgba(79, 142, 247, 0.12) !important;
-}
+  padding: 0.42rem 0.95rem !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}}
+
+[data-testid="stSegmentedControl"] button:hover {{
+  color: #38BDF8 !important;
+  background: rgba(56, 189, 248, 0.12) !important;
+  transform: translateY(-1px) !important;
+}}
+
 [data-testid="stSegmentedControl"] button[aria-checked="true"],
 [data-testid="stSegmentedControl"] button[data-checked="true"],
-[data-testid="stSegmentedControl"] [data-baseweb="button-group"] button[aria-selected="true"] {
-  background: rgba(79, 142, 247, 0.25) !important;
+[data-testid="stSegmentedControl"] [data-baseweb="button-group"] button[aria-selected="true"] {{
+  background: #0284C7 !important;
   color: #FFFFFF !important;
-  border-color: rgba(79, 142, 247, 0.5) !important;
-  box-shadow: 0 0 12px rgba(79, 142, 247, 0.35) !important;
+  border-color: #38BDF8 !important;
+  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35) !important;
   font-weight: 700 !important;
-}
+}}
 
-/* Sidebar */
-[data-testid="stSidebar"] { background: rgba(5,8,19,0.98) !important; border-right: 1px solid var(--bdr) !important; }
-[data-testid="stSidebar"] * { font-family: 'Plus Jakarta Sans', sans-serif !important; }
-.stMultiSelect [data-baseweb="tag"] { background: rgba(79,142,247,0.14) !important; border: 1px solid rgba(79,142,247,0.28) !important; color: #4F8EF7 !important; }
-.stRadio label { color: #E2E8F0 !important; font-size: 0.82rem !important; }
-.stSelectbox label, .stDateInput label { color: #94A3B8 !important; font-size: 0.78rem !important; font-weight: 600; }
+/* ═══════ FLIP CARDS & METRIC WIDGETS ═══════ */
+.flip-wrap {{
+  height: 195px;
+}}
 
-/* Material dashboard override */
-.stApp { background: #E9EDF2 !important; color: #263238 !important; }
-.stApp::before { display: none; }
-.block-container { padding: 5.5rem 3.25rem 3.5rem !important; max-width: 100% !important; }
-[data-testid="stSidebar"] {
-  background: linear-gradient(180deg, #0B1218 0%, #14232D 58%, #081017 100%) !important;
-  border-right: 2px solid #263E4D !important;
-  box-shadow: 5px 0 24px rgba(15, 23, 42, 0.28) !important;
-}
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] { color: #E5EEF4 !important; }
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
-  color: #FFFFFF !important;
-  background: linear-gradient(135deg, #075985, #0284C7) !important;
-  border: 1px solid #38BDF8 !important;
-  border-radius: 10px !important;
-  padding: 0.85rem 0.9rem !important;
-  margin: 0.2rem 0 1.15rem !important;
-  box-shadow: 0 5px 14px rgba(2, 132, 199, 0.30) !important;
-  letter-spacing: 0.01em !important;
-}
-[data-testid="stSidebar"] hr {
-  border-color: #385363 !important;
-  opacity: 0.9 !important;
-}
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong {
-  color: #DCEAF2 !important;
-}
-[data-testid="stSidebar"] [data-baseweb="select"] > div,
-[data-testid="stSidebar"] [data-baseweb="slider"] {
-  border-color: #476475 !important;
-}
-[data-testid="stSidebar"] [data-baseweb="select"] > div {
-  background: #1B2D39 !important;
-  color: #FFFFFF !important;
-}
-[data-testid="stSidebar"] [data-baseweb="tag"] {
-  background: #075985 !important;
-  border: 1px solid #38BDF8 !important;
-  color: #FFFFFF !important;
-}
-.qp-nav {
-  background: #FFFFFF;
-  border-bottom: 2px solid #CBD5E1;
-  box-shadow: 0 3px 12px rgba(15,23,42,0.14);
-}
-.nav-btn { color: #334155 !important; border: 1px solid transparent !important; }
-.nav-btn:hover { color: #075985 !important; background: #E0F2FE !important; border-color: #7DD3FC !important; }
-.nav-btn.active { color: #FFFFFF !important; background: #0284C7 !important; border-color: #0369A1 !important; box-shadow: 0 4px 10px rgba(2,132,199,.25); }
-.qp-right .regime-chip { border-color: #7DD3FC; background: #E0F2FE; color: #075985; }
-.qp-brand, .sec-title, .hero-sub, .hero-chip, .fc-lbl, .fc-dlt { color: #64748B !important; }
-.hero-title { background: linear-gradient(115deg, #263238 0%, #0288D1 70%, #00ACC1 100%); -webkit-background-clip: text; }
-.hero-sub, .hero-chip { color: #475569 !important; }
-.glow-div { background: linear-gradient(90deg, transparent, #94A3B8 35%, #CBD5E1 70%, transparent); }
-.sec-hdr { margin-top: 1.8rem; margin-bottom: 1rem; }
-.sec-badge { background: #E0F2FE; border-color: #BAE6FD; color: #0288D1; }
-.flip-wrap { height: 190px; }
-.flip-face {
-  border: 1px solid #CBD5E1;
-  border-radius: 10px;
-  box-shadow: 0 5px 12px rgba(15,23,42,0.14);
-}
-.flip-front { background: #FFFFFF; }
-.flip-back { background: #FFFFFF; border: 1px solid #7DD3FC; }
-.flip-wrap:hover .flip-face { border-color: #0284C7; box-shadow: 0 8px 20px rgba(15,23,42,0.20); }
-.metric-explanation {
-  min-height: 145px;
-  padding: 1rem 1.2rem;
+.flip-face {{
+  border: 1px solid #3A3F4D;
+  border-radius: 12px;
+  background: #252830;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}}
+
+.flip-wrap:hover .flip-face {{
+  border-color: #38BDF8;
+  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.22);
+}}
+
+.flip-front {{
+  position: relative;
+  min-height: 150px;
+  padding: 0 1.3rem 1.1rem;
+}}
+
+.fc-bar {{
+  height: 3px;
+  margin: 0 -1.3rem 0.9rem -1.3rem;
+  border-radius: 12px 12px 0 0;
+}}
+
+.fc-row1 {{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.15rem;
+}}
+
+.fc-lbl {{
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--txt-muted);
+}}
+
+.fc-ico {{
+  font-size: 1.15rem;
+}}
+
+.fc-val {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2.05rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+}}
+
+.fc-dlt {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--txt-muted);
+}}
+
+.fc-dlt .up   {{ color: #10B981; font-weight: 700; }}
+.fc-dlt .down {{ color: #F43F5E; font-weight: 700; }}
+
+.metric-explanation {{
+  min-height: 150px;
+  padding: 1.1rem 1.3rem;
   border: 1px solid #0284C7;
-  border-radius: 10px;
-  background: #E0F2FE;
-  box-shadow: 0 5px 12px rgba(15,23,42,0.14);
-}
-.metric-explanation .fc-back-name { color: #0F172A; }
-.metric-explanation .fc-back-desc { color: #334155; }
-.info-panel { background: #FFFFFF; border: 1px solid #94A3B8; box-shadow: 0 5px 12px rgba(15,23,42,0.12); }
-.info-panel p, .info-panel h4 { color: #475569; }
-[data-testid="stPlotlyChart"] {
-  background: #F1F5F9;
-  border: 1px solid #94A3B8;
-  border-radius: 10px;
-  padding: 1rem 1rem 0.4rem;
-  margin-bottom: 1.75rem;
-  box-shadow: 0 5px 12px rgba(15,23,42,0.18);
-}
-[data-testid="stHorizontalBlock"] { gap: 1.4rem !important; }
-[data-testid="stButton"] button {
-  border-radius: 8px !important;
-  border: 1px solid #0284C7 !important;
-  background: #F0F9FF !important;
-  color: #075985 !important;
-  box-shadow: 0 3px 7px rgba(15,23,42,0.10) !important;
-  font-weight: 700 !important;
-}
-[data-testid="stButton"] button:hover { border-color: #0369A1 !important; background: #E0F2FE !important; }
+  border-radius: 12px;
+  background: #1A1D24;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+}}
+
+.fc-back-tag {{
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}}
+
+.fc-back-name {{
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  margin-bottom: 0.4rem;
+}}
+
+.fc-back-desc {{
+  font-size: 0.72rem;
+  color: #CBD5E1;
+  line-height: 1.6;
+  flex: 1;
+}}
+
+.fc-back-eq {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  color: #38BDF8;
+  background: #121418;
+  border: 1px solid #0284C7;
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem;
+  margin-top: 0.5rem;
+}}
+
+/* Color helpers */
+.c-blue   {{ color: #38BDF8 !important; }}
+.c-green  {{ color: #10B981 !important; }}
+.c-rose   {{ color: #F43F5E !important; }}
+.c-amber  {{ color: #F59E0B !important; }}
+
+/* ═══════ SECTION HEADERS & DETAILS PANEL ═══════ */
+.sec-anchor {{
+  scroll-margin-top: calc(var(--nav-h) + 24px);
+  display: block;
+}}
+
+.sec-hdr {{
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2.4rem;
+  margin-bottom: 1.15rem;
+}}
+
+.sec-left {{
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex: 1;
+}}
+
+.sec-pip {{
+  width: 4px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}}
+
+.sec-title {{
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #FFFFFF;
+}}
+
+.sec-badge {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid #0284C7;
+  color: #38BDF8;
+}}
+
+.info-panel {{
+  background: #252830;
+  border: 1px solid #3A3F4D;
+  border-radius: 12px;
+  padding: 1.1rem 1.35rem;
+  margin-bottom: 1.25rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  animation: ipSlide 0.22s ease;
+}}
+
+@keyframes ipSlide {{
+  from {{ opacity: 0; transform: translateY(-6px); }}
+  to   {{ opacity: 1; transform: translateY(0); }}
+}}
+
+.info-panel h4 {{
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #38BDF8;
+  margin: 0 0 0.45rem 0;
+}}
+
+.info-panel p {{
+  font-size: 0.74rem;
+  color: #CBD5E1;
+  line-height: 1.65;
+  margin: 0 0 0.45rem 0;
+}}
+
+.info-panel .eq {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: #38BDF8;
+  background: #1A1D24;
+  border: 1px solid #0284C7;
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+  display: inline-block;
+  margin-top: 0.15rem;
+}}
+
+/* ═══════ PLOTLY CHARTS & CONTAINERS ═══════ */
+[data-testid="stPlotlyChart"] {{
+  background: #252830 !important;
+  border: 1px solid #3A3F4D !important;
+  border-radius: 12px !important;
+  padding: 1.25rem 1.25rem 0.5rem !important;
+  margin-bottom: 2rem !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}}
+
+[data-testid="stHorizontalBlock"] {{
+  gap: 1.8rem !important;
+}}
+
+/* Dividers & Hero */
+.glow-div {{
+  height: 1px;
+  margin: 0.4rem 0 1.8rem 0;
+  background: linear-gradient(90deg, transparent, #3A3F4D 35%, #0284C7 50%, #3A3F4D 65%, transparent);
+}}
+
+.hero-wrap {{
+  padding: 0.4rem 0 0.9rem 0;
+}}
+
+.hero-title {{
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+  background: linear-gradient(115deg, #FFFFFF 0%, #38BDF8 60%, #0284C7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.2;
+}}
+
+.hero-sub {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #94A3B8;
+  margin: 0 0 0.75rem 0;
+}}
+
+.hero-chips {{
+  display: flex;
+  gap: 1.3rem;
+  flex-wrap: wrap;
+}}
+
+.hero-chip {{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #E2E8F0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #252830;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid #3A3F4D;
+}}
+
+.hero-chip .cd {{
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}}
+
+/* Sidebar Active Badge Chips */
+.asset-badge {{
+  display: inline-block;
+  background: #121418;
+  color: #38BDF8;
+  border: 1px solid #3A3F4D;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 600;
+}}
 </style>
 
-<!-- Ambient blobs -->
-<div class="blob blob-1"></div>
-<div class="blob blob-2"></div>
-<div class="blob blob-3"></div>
-
-<!-- ═══ NAVBAR ═══ -->
+<!-- ═══ CLEAN PRO TOP NAVBAR ═══ -->
 <nav class="qp-nav">
-  <a class="nav-btn active" href="#sec-kpi" style="margin-right:1.3rem;"><span class="ni">☰</span> DASHBOARD</a>
   <div class="qp-brand">QUANT <span class="hi">ENGINE</span></div>
   <div class="qp-links">
     <a class="nav-btn active" href="#sec-kpi"><span class="ni">◈</span>Overview</a>
@@ -474,12 +643,10 @@ button[data-testid="stSidebarCollapseButton"] {
     <a class="nav-btn" href="#sec-risk"><span class="ni">⚡</span>Risk & Correlation</a>
     <a class="nav-btn" href="#sec-portfolio"><span class="ni">◉</span>Asset Weights</a>
   </div>
-  <div class="qp-right">
-    <span class="regime-chip">⚙ FILTERS IN SIDEBAR</span>
-    <div class="regime-chip"><span class="rdot"></span>BACKEND CONNECTED</div>
-  </div>
 </nav>
 
+<!-- ═══ SEMI-TRANSPARENT SETTINGS BACKDROP ═══ -->
+<div class="settings-backdrop" onclick="const b = Array.from(document.querySelectorAll('button')).find(el => el.innerText.includes('Close') || el.innerText.includes('✖')); if(b) b.click();"></div>
 """, unsafe_allow_html=True)
 
 
@@ -497,7 +664,6 @@ def load_market_data() -> pd.DataFrame:
     raw_dir = BASE_DIR / "data" / "raw"
     if not raw_dir.exists():
         raw_dir = BASE_DIR / "companies"
-
     prices = loader.load_all_portfolio_assets(str(raw_dir), missing_threshold=0.30)
     return prices
 
@@ -519,48 +685,154 @@ master_max_date = master_prices.index.max().date()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2. HERO PLACEHOLDER & UNIVERSAL TIME HORIZON TOOLBAR
+# 2. STATE INITIALIZATION & PRESET CALLBACKS
+# ─────────────────────────────────────────────────────────────────────────────
+if "sb_universe_select" not in st.session_state or not st.session_state.get("sb_universe_select"):
+    st.session_state["sb_universe_select"] = all_surviving_tickers.copy()
+
+if "sb_rf_slider" not in st.session_state:
+    st.session_state["sb_rf_slider"] = 6.5
+
+def _preset_select_all():
+    st.session_state["sb_universe_select"] = all_surviving_tickers.copy()
+
+def _preset_select_top10():
+    preferred_top10 = [
+        "RELIANCE", "HDFCBANK", "INFY", "ICICIBANK", "TCS",
+        "KOTAKBANK", "HINDUNILVR", "ITC", "LT", "AXISBANK"
+    ]
+    matched = [t for t in preferred_top10 if t in all_surviving_tickers]
+    if len(matched) < 10:
+        remainder = [t for t in all_surviving_tickers if t not in matched]
+        matched.extend(remainder[: 10 - len(matched)])
+    st.session_state["sb_universe_select"] = sorted(matched)
+
+def _preset_select_top5():
+    preferred_top5 = ["RELIANCE", "HDFCBANK", "INFY", "ICICIBANK", "TCS"]
+    matched = [t for t in preferred_top5 if t in all_surviving_tickers]
+    if len(matched) < 5:
+        remainder = [t for t in all_surviving_tickers if t not in matched]
+        matched.extend(remainder[: 5 - len(matched)])
+    st.session_state["sb_universe_select"] = sorted(matched)
+
+def _preset_reset_default():
+    st.session_state["sb_universe_select"] = all_surviving_tickers.copy()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. SIDEBAR (OVERLAY SETTINGS PANEL FOR COMPANIES & RISK-FREE RATE)
+# ─────────────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    col_head, col_close = st.columns([3.2, 1.4])
+    with col_head:
+        st.markdown("""
+        <div style="padding-top:2px;">
+          <h3 style="margin:0;font-size:1.1rem;font-weight:800;color:#FFFFFF;letter-spacing:-0.01em;white-space:nowrap;">
+            ⚙️ Settings Panel
+          </h3>
+          <p style="margin:2px 0 0 0;font-size:0.74rem;color:#94A3B8;">
+            Asset Universe &amp; Risk Benchmark
+          </p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_close:
+        st.button("✖ Close", key="btn_close_panel", on_click=_close_settings_panel, use_container_width=True)
+
+    st.markdown("<div style='height:1px;background:#3A3F4D;margin:0.6rem 0 0.9rem 0;'></div>", unsafe_allow_html=True)
+
+    st.markdown("<b style='font-size:0.8rem;color:#FFFFFF;letter-spacing:0.02em;'>Quick Universe Presets</b>", unsafe_allow_html=True)
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        st.button("✦ All (42 Stocks)", on_click=_preset_select_all, use_container_width=True, key="sb_btn_all")
+        st.button("✦ Top 5 Core", on_click=_preset_select_top5, use_container_width=True, key="sb_btn_top5")
+    with col_p2:
+        st.button("✦ Top 10 Leaders", on_click=_preset_select_top10, use_container_width=True, key="sb_btn_top10")
+        st.button("↺ Reset Universe", on_click=_preset_reset_default, use_container_width=True, key="sb_btn_reset")
+
+    st.markdown("<div style='margin-top:0.9rem;'><b style='font-size:0.8rem;color:#FFFFFF;letter-spacing:0.02em;'>Select / Deselect Individual Companies</b></div>", unsafe_allow_html=True)
+    selected_assets = st.multiselect(
+        "Select / Deselect Individual Companies",
+        options=all_surviving_tickers,
+        key="sb_universe_select",
+        label_visibility="collapsed",
+        placeholder="Search or select companies...",
+    )
+
+    st.markdown(
+        f"<div style='margin-top:1.1rem;display:flex;justify-content:space-between;align-items:center;'>"
+        f"<b style='font-size:0.8rem;color:#FFFFFF;letter-spacing:0.02em;'>Risk-Free Rate (Rf %)</b>"
+        f"<span style='font-family:\"JetBrains Mono\",monospace;font-size:0.82rem;font-weight:700;color:#10B981;'>{float(st.session_state.get('sb_rf_slider', 6.5)):.2f}%</span>"
+        f"</div>",
+        unsafe_allow_html=True
+    )
+    rf_rate_pct = st.slider(
+        "Risk-Free Rate (Rf %)",
+        min_value=2.0,
+        max_value=10.0,
+        value=float(st.session_state.get("sb_rf_slider", 6.5)),
+        step=0.25,
+        label_visibility="collapsed",
+        key="sb_rf_slider",
+    )
+    rf_rate = rf_rate_pct / 100.0
+
+    n_sel = len(selected_assets)
+    n_tot = len(all_surviving_tickers)
+    pct_active = (n_sel / n_tot) * 100.0 if n_tot > 0 else 0.0
+
+    st.markdown(f"""
+    <div style="background:#1A1D24;border:1px solid #3A3F4D;border-radius:10px;padding:0.75rem 0.9rem;margin:1.1rem 0 0.5rem 0;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem;">
+        <span style="font-size:0.7rem;font-weight:700;color:#38BDF8;letter-spacing:0.08em;text-transform:uppercase;">Portfolio Universe</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.76rem;font-weight:700;color:#FFFFFF;">{n_sel} / {n_tot} ({pct_active:.0f}%)</span>
+      </div>
+      <div style="background:#2E3440;border-radius:4px;height:5px;width:100%;overflow:hidden;">
+        <div style="background:linear-gradient(90deg,#0284C7,#38BDF8);height:100%;width:{pct_active:.1f}%;"></div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if n_sel > 0:
+        with st.expander(f"📋 View Active Holdings ({n_sel})", expanded=False):
+            chips_html = "".join([f'<span class="asset-badge">{t}</span>' for t in selected_assets])
+            st.markdown(f'<div style="max-height:160px;overflow-y:auto;line-height:1.9;">{chips_html}</div>', unsafe_allow_html=True)
+    else:
+        st.error("⚠️ No companies selected! Please choose at least 2 companies or click Top 10.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3B. HERO PLACEHOLDER & DASHBOARD TOOLBAR WITH TOGGLE BUTTON
 # ─────────────────────────────────────────────────────────────────────────────
 hero_placeholder = st.empty()
 
-# Dedicated On-Page Time Horizon Toolbar (rendered directly underneath the Hero title)
+# Dedicated On-Page Time Horizon Toolbar with Dashboard Toggle Button
 HORIZONS = ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "3 Years", "5 Years", "Max", "Custom"]
 
 with st.container():
-    settings_popover = st.popover("⚙ Manage Companies & Rate", use_container_width=False)
-    with settings_popover:
-        st.markdown("#### Strategy & Filter Parameters")
-        selected_assets = st.multiselect(
-            "Companies / Asset Universe",
-            options=all_surviving_tickers,
-            default=all_surviving_tickers,
-            help="Select the companies included in the portfolio calculations.",
-            key="sb_universe_select",
-        )
-        if not selected_assets:
-            selected_assets = all_surviving_tickers[:10]
-            st.info("Defaulted to top 10 assets because selection was empty.")
-        rf_rate_pct = st.slider(
-            "Risk-Free Rate (Rf %)",
-            min_value=2.0,
-            max_value=10.0,
-            value=6.5,
-            step=0.25,
-            help="Annualised risk-free rate used for Sharpe ratio calculation.",
-            key="sb_rf_slider",
-        )
-        st.caption("Changes apply to the portfolio calculations and charts.")
-    rf_rate = rf_rate_pct / 100.0
+    col_tbar1, col_tbar2, col_tbar3 = st.columns([1.5, 1.2, 1.2])
+    with col_tbar1:
+        st.button("⚙️ Configure Universe & Risk", key="btn_open_panel", on_click=_open_settings_panel, use_container_width=True)
+    with col_tbar2:
+        st.markdown(f"""
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:700;color:#38BDF8;background:#252830;border:1px solid #3A3F4D;border-radius:8px;padding:0.46rem 0.9rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.25);">
+          Active: <b>{n_sel}</b> / {n_tot} ({pct_active:.0f}%)
+        </div>
+        """, unsafe_allow_html=True)
+    with col_tbar3:
+        st.markdown(f"""
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:700;color:#10B981;background:#252830;border:1px solid #3A3F4D;border-radius:8px;padding:0.46rem 0.9rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.25);">
+          Risk-Free: <b>{rf_rate_pct:.2f}%</b>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.markdown("""
-    <div style="display:flex;align-items:center;justify-content:space-between;margin:0.1rem 0 0.5rem 0;flex-wrap:wrap;gap:0.7rem;">
-      <div style="display:flex;align-items:center;gap:0.6rem;">
-        <span style="font-family:'JetBrains Mono',monospace;font-size:0.74rem;font-weight:700;color:#4F8EF7;letter-spacing:0.06em;background:rgba(79,142,247,0.12);padding:0.25rem 0.65rem;border-radius:6px;border:1px solid rgba(79,142,247,0.3);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:0.8rem 0 0.5rem 0;flex-wrap:wrap;gap:0.7rem;">
+      <div style="display:flex;align-items:center;gap:0.65rem;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.74rem;font-weight:700;color:#38BDF8;letter-spacing:0.06em;background:rgba(56,189,248,0.15);padding:0.28rem 0.7rem;border-radius:6px;border:1px solid #0284C7;">
           ⏱ TIME HORIZON
         </span>
-        <span style="font-size:0.73rem;color:#94A3B8;">Click any horizon below for instant portfolio recalculation &amp; chart updates:</span>
+        <span style="font-size:0.75rem;color:#94A3B8;font-weight:500;">Select an investment window for dynamic portfolio rebalancing:</span>
       </div>
-      <span class="nav-btn" style="margin:0;font-size:0.72rem;padding:0.32rem 0.85rem;">⚙ Settings &amp; Universe in sidebar</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -602,33 +874,60 @@ with st.container():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 2B. SIDEBAR STRATEGY PARAMETERS
+# 3C. EDGE CASE HANDLING FOR SELECTION
 # ─────────────────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙ Strategy & Filter Parameters")
-    st.markdown("---")
-    st.markdown(f"**Selected Time Horizon:** `{time_horizon}`")
-    st.markdown("<span style='font-size:0.75rem;color:#94A3B8;'>You can also click any horizon directly in the toolbar on the main dashboard.</span>", unsafe_allow_html=True)
-    st.markdown("---")
-    st.markdown("Use **Manage Companies & Rate** at the top-left to update the asset universe and risk-free rate.")
-    st.metric("Risk-Free Rate", f"{rf_rate_pct:.2f}%")
-    st.metric("Selected Companies", len(selected_assets))
-
-    st.markdown("---")
-    st.markdown(f"""
-    <div style="font-size:0.62rem;color:#475569;line-height:1.8;font-family:'JetBrains Mono',monospace;">
-      <b>PORTFOLIO ENGINE v3.0</b><br>
-      Surviving Universe: {len(all_surviving_tickers)} Assets<br>
-      Selected Assets: {len(selected_assets)} Assets<br>
-      History: {master_min_date} → {master_max_date}<br>
-      Total Trading Days: {len(master_prices):,}
+if n_sel == 0:
+    st.markdown("""
+    <div id="sec-kpi"></div>
+    <div id="sec-perf"></div>
+    <div id="sec-analytics"></div>
+    <div id="sec-risk"></div>
+    <div id="sec-portfolio"></div>
+    <div style="background:#252830;border:2px dashed #F43F5E;border-radius:14px;padding:2.5rem 2rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:850px;margin:2rem auto;">
+      <div style="font-size:2.8rem;margin-bottom:0.6rem;">⚠️</div>
+      <h3 style="font-size:1.3rem;font-weight:800;color:#F43F5E;margin:0 0 0.4rem 0;">No Companies Selected</h3>
+      <p style="font-size:0.86rem;color:#94A3B8;max-width:560px;margin:0 auto 1.5rem auto;line-height:1.6;">
+        Quantitative portfolio optimization, covariance estimation, and risk analytics require active assets. Open the settings drawer or select a preset below to instantly build your portfolio:
+      </p>
     </div>
-    <br>
     """, unsafe_allow_html=True)
+    col_ec1, col_ec2, col_ec3 = st.columns([1.2, 1.2, 1.2])
+    with col_ec1:
+        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, use_container_width=True, key="ec_btn_open")
+    with col_ec2:
+        st.button("✦ Load Top 10 Core Leaders", on_click=_preset_select_top10, use_container_width=True, key="ec_btn_top10")
+    with col_ec3:
+        st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, use_container_width=True, key="ec_btn_all")
+    st.stop()
+
+if n_sel == 1:
+    single_name = selected_assets[0]
+    st.markdown(f"""
+    <div id="sec-kpi"></div>
+    <div id="sec-perf"></div>
+    <div id="sec-analytics"></div>
+    <div id="sec-risk"></div>
+    <div id="sec-portfolio"></div>
+    <div style="background:#252830;border:2px dashed #F59E0B;border-radius:14px;padding:2.5rem 2rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:850px;margin:2rem auto;">
+      <div style="font-size:2.8rem;margin-bottom:0.6rem;">⚡</div>
+      <h3 style="font-size:1.3rem;font-weight:800;color:#F59E0B;margin:0 0 0.4rem 0;">Only 1 Asset Selected ({single_name})</h3>
+      <p style="font-size:0.86rem;color:#94A3B8;max-width:560px;margin:0 auto 1.5rem auto;line-height:1.6;">
+        Modern Portfolio Theory optimization (Sharpe ratio maximization, minimum variance, and pairwise cross-asset correlation) mathematically requires at least <b>2 distinct assets</b> to construct a non-singular covariance matrix.
+      </p>
+    </div>
+    """, unsafe_allow_html=True)
+    col_ec1, col_ec2, col_ec3 = st.columns([1.2, 1.2, 1.2])
+    with col_ec1:
+        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, use_container_width=True, key="ec_btn_open_1")
+    with col_ec2:
+        st.button("✦ Add Top 5 Core Mega-Caps", on_click=_preset_select_top5, use_container_width=True, key="ec_btn_top5_1")
+    with col_ec3:
+        st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, use_container_width=True, key="ec_btn_all_1")
+    st.stop()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SLICING LOGIC
+# 4. SLICING LOGIC
 # ─────────────────────────────────────────────────────────────────────────────
 def slice_price_matrix(
     df: pd.DataFrame,
@@ -674,7 +973,7 @@ def slice_price_matrix(
 
     # Drop columns that have no active prices in this slice
     sub = sub.dropna(axis=1, how="all")
-    # Forward-fill any internal gaps
+    # Forward-fill and backward-fill any internal gaps
     sub = sub.ffill().bfill()
     return sub
 
@@ -689,7 +988,7 @@ if len(sliced_prices) < 5:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. DYNAMIC MPT OPTIMIZATION & MONTE CARLO SIMULATION
+# 5. DYNAMIC MPT OPTIMIZATION & MONTE CARLO SIMULATION
 # ─────────────────────────────────────────────────────────────────────────────
 opt = PortfolioOptimizer(sliced_prices, risk_free_rate=rf_rate, frequency=252)
 
@@ -789,43 +1088,43 @@ var_95_dollar = abs(var_95_pct) * 1_000_000
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SHARED PLOTLY THEME
+# 6. SHARED PLOTLY THEME (MODERN ELEVATED DARK SURFACES)
 # ─────────────────────────────────────────────────────────────────────────────
 PLAYOUT = dict(
-    template="plotly_white",
-    paper_bgcolor="#F1F5F9",
-    plot_bgcolor="#E8EEF4",
-    font=dict(family="Plus Jakarta Sans, sans-serif", color="#1E293B", size=12),
-    margin=dict(l=15, r=15, t=38, b=15),
+    template="plotly_dark",
+    paper_bgcolor="#252830",
+    plot_bgcolor="#1A1D24",
+    font=dict(family="Plus Jakarta Sans, sans-serif", color="#E2E8F0", size=12),
+    margin=dict(l=18, r=18, t=42, b=18),
     legend=dict(
-        bgcolor="#F8FAFC", bordercolor="#94A3B8",
-        borderwidth=1, font=dict(size=11, color="#1E293B"),
+        bgcolor="rgba(37, 40, 48, 0.95)", bordercolor="#3A3F4D",
+        borderwidth=1, font=dict(size=11, color="#E2E8F0"),
         orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
     ),
     xaxis=dict(showgrid=False, zeroline=False, showspikes=True,
-               tickfont=dict(color="#334155", size=11),
-               title_font=dict(color="#1E293B", size=12),
-               spikecolor="#4F8EF7", spikethickness=1, spikedash="dot"),
-    yaxis=dict(showgrid=True, gridcolor="#B8C5D1",
-               tickfont=dict(color="#334155", size=11),
-               title_font=dict(color="#1E293B", size=12),
+               tickfont=dict(color="#94A3B8", size=11),
+               title_font=dict(color="#FFFFFF", size=12, family="Plus Jakarta Sans"),
+               spikecolor="#38BDF8", spikethickness=1, spikedash="dot"),
+    yaxis=dict(showgrid=True, gridcolor="#2E3440",
+               tickfont=dict(color="#94A3B8", size=11),
+               title_font=dict(color="#FFFFFF", size=12, family="Plus Jakarta Sans"),
                zeroline=False, showspikes=True,
-               spikecolor="#4F8EF7", spikethickness=1, spikedash="dot"),
+               spikecolor="#38BDF8", spikethickness=1, spikedash="dot"),
 )
 
-def apply_layout(fig, h=385, **kw):
+def apply_layout(fig, h=390, **kw):
     fig.update_layout(**{**PLAYOUT, "height": h, **kw})
     fig.update_xaxes(
-        tickfont=dict(color="#334155", size=11),
-        title_font=dict(color="#1E293B", size=12),
-        linecolor="#64748B",
+        tickfont=dict(color="#94A3B8", size=11),
+        title_font=dict(color="#FFFFFF", size=12),
+        linecolor="#3A3F4D",
         linewidth=1,
     )
     fig.update_yaxes(
-        tickfont=dict(color="#334155", size=11),
-        title_font=dict(color="#1E293B", size=12),
-        gridcolor="#B8C5D1",
-        linecolor="#64748B",
+        tickfont=dict(color="#94A3B8", size=11),
+        title_font=dict(color="#FFFFFF", size=12),
+        gridcolor="#2E3440",
+        linecolor="#3A3F4D",
         linewidth=1,
     )
     return fig
@@ -836,14 +1135,14 @@ def anchor(sec_id):
 def _toggle_session_value(key: str) -> None:
     st.session_state[key] = not st.session_state.get(key, False)
 
-def sec_header(title, badge="", color="#4F8EF7", info_id=None, info_html=""):
+def sec_header(title, badge="", color="#0284C7", info_id=None, info_html=""):
     if info_id:
         st.session_state.setdefault(info_id, False)
     badge_html = f'<span class="sec-badge">{badge}</span>' if badge else ""
     st.markdown(f"""
     <div class="sec-hdr">
       <div class="sec-left">
-        <div class="sec-pip" style="background:{color};box-shadow:0 0 8px {color}55;"></div>
+        <div class="sec-pip" style="background:{color};box-shadow:0 0 10px {color}55;"></div>
         <span class="sec-title">{title}</span>
         {badge_html}
       </div>
@@ -851,26 +1150,28 @@ def sec_header(title, badge="", color="#4F8EF7", info_id=None, info_html=""):
     """, unsafe_allow_html=True)
     if info_id:
         st.button(
-            "ⓘ Details",
+            "ⓘ Metric Details & Formula" if not st.session_state[info_id] else "✕ Close Details",
             key=f"{info_id}_button",
             on_click=_toggle_session_value,
             args=(info_id,),
         )
         if st.session_state[info_id]:
-            st.markdown(f'<div class="info-panel open">{info_html}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="info-panel">{info_html}</div>', unsafe_allow_html=True)
 
 def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
               dlt_html, back_tag, back_tag_cls, back_name, desc, eq):
     state_key = f"card_{card_id}_details"
     st.session_state.setdefault(state_key, False)
+    
+    is_explained = st.session_state[state_key]
     st.button(
-        "↔ " + ("Show metric" if st.session_state[state_key] else "Explain metric"),
+        "↔ " + ("Show Metric Value" if is_explained else "Explain Metric Formula"),
         key=f"{card_id}_toggle",
         on_click=_toggle_session_value,
         args=(state_key,),
         use_container_width=True,
     )
-    if st.session_state[state_key]:
+    if is_explained:
         st.markdown(f"""
         <div class="metric-explanation">
           <div class="fc-back-tag {back_tag_cls}">{back_tag}</div>
@@ -881,16 +1182,19 @@ def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
         """, unsafe_allow_html=True)
     else:
         icon_colors = {
-            "cagr": "#43A047",
-            "sharpe": "#1E88E5",
-            "maxdd": "#E53935",
-            "var": "#FB8C00",
+            "cagr": "#10B981",
+            "sharpe": "#0284C7",
+            "maxdd": "#F43F5E",
+            "var": "#F59E0B",
         }
-        icon_color = icon_colors.get(card_id, "#0288D1")
+        icon_color = icon_colors.get(card_id, "#0284C7")
         st.markdown(f"""
-        <div class="flip-face flip-front" style="position:relative;min-height:145px;padding:0 1.2rem 1rem;">
+        <div class="flip-face flip-front">
           <div class="fc-bar" style="background:{bar_css};"></div>
-          <div class="fc-row1"><span class="fc-lbl">{lbl}</span><span class="fc-ico" style="background:{icon_color};color:#fff;opacity:1;border-radius:8px;padding:.45rem .55rem;box-shadow:0 5px 10px rgba(15,23,42,.18);">{icon}</span></div>
+          <div class="fc-row1">
+            <span class="fc-lbl">{lbl}</span>
+            <span class="fc-ico" style="background:{icon_color};color:#FFFFFF;border-radius:8px;padding:.4rem .5rem;box-shadow:0 3px 8px rgba(0,0,0,.3);">{icon}</span>
+          </div>
           <div class="fc-val {val_cls}">{val_html}</div>
           <div class="fc-dlt">{dlt_html}</div>
         </div>
@@ -898,9 +1202,8 @@ def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HERO HEADER
+# 7. HERO HEADER
 # ─────────────────────────────────────────────────────────────────────────────
-delta_days = (sliced_prices.index.max() - sliced_prices.index.min()).days
 start_str = sliced_prices.index.min().strftime('%d %b %Y')
 end_str = sliced_prices.index.max().strftime('%d %b %Y')
 
@@ -909,10 +1212,10 @@ hero_placeholder.markdown(f"""
   <div class="hero-title">Quantitative Portfolio Risk Engine</div>
   <div class="hero-sub">MODERN PORTFOLIO THEORY &nbsp;·&nbsp; REAL NIFTY 50 MULTI-ASSET ENGINE</div>
   <div class="hero-chips">
-    <div class="hero-chip"><div class="cd" style="background:#4F8EF7;"></div>{n_active} Active Assets</div>
-    <div class="hero-chip"><div class="cd" style="background:#34D399;"></div>Horizon: {time_horizon} ({n_days:,} Trading Days)</div>
-    <div class="hero-chip"><div class="cd" style="background:#A78BFA;"></div>Range: {start_str} → {end_str}</div>
-    <div class="hero-chip"><div class="cd" style="background:#FB7185;"></div>Risk-Free Rate: {rf_rate_pct:.1f}%</div>
+    <div class="hero-chip"><div class="cd" style="background:#38BDF8;"></div><b>{n_active}</b> Active Assets</div>
+    <div class="hero-chip"><div class="cd" style="background:#10B981;"></div>Horizon: <b>{time_horizon}</b> ({n_days:,} Trading Days)</div>
+    <div class="hero-chip"><div class="cd" style="background:#A855F7;"></div>History: <b>{start_str}</b> → <b>{end_str}</b></div>
+    <div class="hero-chip"><div class="cd" style="background:#F43F5E;"></div>Risk-Free Rate: <b>{rf_rate_pct:.2f}%</b></div>
   </div>
 </div>
 <div class="glow-div"></div>
@@ -920,13 +1223,13 @@ hero_placeholder.markdown(f"""
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. ROW 1 — REAL PERFORMANCE KPI FLIP CARDS
+# 8. ROW 1 — REAL PERFORMANCE KPI FLIP CARDS
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-kpi")
 sec_header(
     "Performance Snapshot",
     badge=f"REAL DATA · {time_horizon.upper()}",
-    color="#4F8EF7",
+    color="#0284C7",
     info_id="info-kpi",
     info_html="""
 <h4>📊 Performance Snapshot (Dynamic Time Horizon)</h4>
@@ -944,7 +1247,7 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     flip_card(
         "cagr",
-        bar_css="linear-gradient(90deg,#34D399,#059669)",
+        bar_css="linear-gradient(90deg,#059669,#10B981)",
         lbl="Max Sharpe CAGR",
         icon="📈",
         val_html=f"{cagr_ms*100:+.1f}%",
@@ -960,7 +1263,7 @@ with c1:
 with c2:
     flip_card(
         "sharpe",
-        bar_css="linear-gradient(90deg,#4F8EF7,#2563EB)",
+        bar_css="linear-gradient(90deg,#0284C7,#38BDF8)",
         lbl="Sharpe Ratio",
         icon="⚡",
         val_html=f"{ms_sharpe:.2f}",
@@ -969,14 +1272,14 @@ with c2:
         back_tag="RISK-ADJUSTED",
         back_tag_cls="c-blue",
         back_name="Sharpe Ratio",
-        desc=f"Excess return generated per unit of total annualized volatility above the {rf_rate_pct:.1f}% risk-free rate for this exact time period.",
+        desc=f"Excess return generated per unit of total annualized volatility above the {rf_rate_pct:.2f}% risk-free rate for this exact time period.",
         eq=f"Sharpe = (R_p − {rf_rate_pct:.2f}%) / σ_p × √252",
     )
 
 with c3:
     flip_card(
         "maxdd",
-        bar_css="linear-gradient(90deg,#FB7185,#BE123C)",
+        bar_css="linear-gradient(90deg,#E11D48,#F43F5E)",
         lbl="Max Drawdown",
         icon="📉",
         val_html=f"{max_dd_ms:.1f}%",
@@ -992,7 +1295,7 @@ with c3:
 with c4:
     flip_card(
         "var",
-        bar_css="linear-gradient(90deg,#FBBF24,#B45309)",
+        bar_css="linear-gradient(90deg,#D97706,#FBBF24)",
         lbl="Daily 95% VaR",
         icon="🎯",
         val_html=f"₹{var_95_dollar:,.0f}",
@@ -1009,20 +1312,20 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. ROW 2 — REAL EQUITY CURVE COMPARISON
+# 9. ROW 2 — REAL EQUITY CURVE COMPARISON
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-perf")
 sec_header(
     f"Equity Curve Comparison ({start_str} → {end_str})",
     badge=f"{len(ret_ms_series):,} TRADING DAYS",
-    color="#4F8EF7",
+    color="#0284C7",
     info_id="info-perf",
     info_html="""
 <h4>📈 Equity Curve Comparison (Base ₹100)</h4>
 <p>Cumulative compounded performance of the three canonical MPT allocation strategies over your selected time window:</p>
-<p>• <b style="color:#34D399;">Max Sharpe Portfolio</b> — Mean-variance optimal tangential allocation<br>
+<p>• <b style="color:#10B981;">Max Sharpe Portfolio</b> — Mean-variance optimal tangential allocation<br>
 • <b style="color:#38BDF8;">Minimum Volatility Portfolio</b> — Global Minimum Variance (left-most frontier)<br>
-• <b style="color:#A78BFA;">Equal Weight (1/N)</b> — Benchmark allocation across all surviving assets</p>
+• <b style="color:#A855F7;">Equal Weight (1/N)</b> — Benchmark allocation across all active assets</p>
 """,
 )
 
@@ -1030,26 +1333,26 @@ fig_main = go.Figure()
 
 fig_main.add_trace(go.Scatter(
     x=nav_ew.index, y=nav_ew.values, name="Equal Weight (1/N)",
-    line=dict(color="#A78BFA", width=1.8, dash="dot"),
+    line=dict(color="#A855F7", width=2.0, dash="dot"),
     hovertemplate="<b>Equal Weight</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
 ))
 
 fig_main.add_trace(go.Scatter(
     x=nav_mv.index, y=nav_mv.values, name="Min Volatility",
-    line=dict(color="#38BDF8", width=2.2),
+    line=dict(color="#38BDF8", width=2.4),
     hovertemplate="<b>Min Volatility</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
 ))
 
 fig_main.add_trace(go.Scatter(
     x=nav_ms.index, y=nav_ms.values, name="Max Sharpe Portfolio",
-    line=dict(color="#34D399", width=3.2),
-    fill="tozeroy", fillcolor="rgba(52,211,153,0.05)",
+    line=dict(color="#10B981", width=3.4),
+    fill="tozeroy", fillcolor="rgba(16, 185, 129, 0.08)",
     hovertemplate="<b>Max Sharpe</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
 ))
 
 apply_layout(
-    fig_main, h=410,
-    yaxis=dict(tickprefix="₹", showgrid=True, gridcolor="rgba(79,142,247,0.06)", zeroline=False),
+    fig_main, h=420,
+    yaxis=dict(tickprefix="₹", showgrid=True, gridcolor="#2E3440", zeroline=False),
     hovermode="x unified",
 )
 st.plotly_chart(fig_main, width="stretch", config={"displayModeBar": False})
@@ -1057,7 +1360,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. ROW 3 — MONTE CARLO EFFICIENT FRONTIER + ASSET ALLOCATION
+# 10. ROW 3 — MONTE CARLO EFFICIENT FRONTIER + ASSET ALLOCATION
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-analytics")
 col_ef, col_alloc = st.columns([1.1, 0.9], gap="large")
@@ -1066,15 +1369,15 @@ with col_ef:
     sec_header(
         "Monte Carlo Efficient Frontier",
         badge=f"{len(frontier_df):,} SIMULATIONS",
-        color="#A78BFA",
+        color="#7C3AED",
         info_id="info-ef",
         info_html="""
 <h4>◎ Dynamic Monte Carlo Efficient Frontier</h4>
 <p>Thousands of random Dirichlet-weighted portfolios mapped in risk-return space using the active covariance matrix for the selected time window.</p>
-<p>• <b style="color:#34D399;">★ Green Star</b> = Max Sharpe Tangency Portfolio<br>
+<p>• <b style="color:#10B981;">★ Green Star</b> = Max Sharpe Tangency Portfolio<br>
 • <b style="color:#38BDF8;">◆ Blue Diamond</b> = Global Minimum Volatility Portfolio<br>
-• <b style="color:#A78BFA;">● Violet Circle</b> = 1/N Equal Weight Baseline<br>
-• <b style="color:#FBBF24;">-- Yellow Dashed</b> = Capital Allocation Line (CAL) from Rf</p>
+• <b style="color:#A855F7;">● Violet Circle</b> = 1/N Equal Weight Baseline<br>
+• <b style="color:#F59E0B;">-- Amber Dashed</b> = Capital Allocation Line (CAL) from Rf</p>
 """,
     )
 
@@ -1088,12 +1391,12 @@ with col_ef:
         marker=dict(
             color=frontier_df["s"],
             colorscale="Viridis",
-            size=3.5,
+            size=3.8,
             opacity=0.45,
             colorbar=dict(
-                title=dict(text="Sharpe", font=dict(family="JetBrains Mono", size=10, color="#64748B")),
-                tickfont=dict(family="JetBrains Mono", size=8, color="#64748B"),
-                thickness=8, len=0.6,
+                title=dict(text="Sharpe", font=dict(family="JetBrains Mono", size=10, color="#94A3B8")),
+                tickfont=dict(family="JetBrains Mono", size=9, color="#94A3B8"),
+                thickness=9, len=0.65,
             ),
         ),
         name="Random Portfolios",
@@ -1107,7 +1410,7 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=cal_x, y=cal_y,
         mode="lines",
-        line=dict(color="#FBBF24", width=1.8, dash="dash"),
+        line=dict(color="#F59E0B", width=2.0, dash="dash"),
         name=f"CAL (Rf={rf_rate_pct:.1f}%)",
         hovertemplate="Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra>CAL</extra>",
     ))
@@ -1116,9 +1419,9 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=[ms_vol * 100], y=[ms_ret * 100],
         mode="markers+text",
-        marker=dict(symbol="star", size=18, color="#34D399", line=dict(color="#FFFFFF", width=1.5)),
+        marker=dict(symbol="star", size=19, color="#10B981", line=dict(color="#FFFFFF", width=1.5)),
         text=[" Max Sharpe"], textposition="top right",
-        textfont=dict(family="JetBrains Mono", size=10, color="#34D399"),
+        textfont=dict(family="JetBrains Mono", size=10, color="#10B981"),
         name=f"Max Sharpe (SR={ms_sharpe:.2f})",
         hovertemplate="<b>Max Sharpe Portfolio</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<br>Sharpe: " + f"{ms_sharpe:.2f}<extra></extra>",
     ))
@@ -1126,7 +1429,7 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=[mv_vol * 100], y=[mv_ret * 100],
         mode="markers+text",
-        marker=dict(symbol="diamond", size=13, color="#38BDF8", line=dict(color="#FFFFFF", width=1.2)),
+        marker=dict(symbol="diamond", size=14, color="#38BDF8", line=dict(color="#FFFFFF", width=1.3)),
         text=[" Min Vol"], textposition="bottom right",
         textfont=dict(family="JetBrains Mono", size=10, color="#38BDF8"),
         name=f"Min Vol (σ={mv_vol*100:.1f}%)",
@@ -1136,20 +1439,20 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=[ew_vol * 100], y=[ew_ret * 100],
         mode="markers+text",
-        marker=dict(symbol="circle", size=11, color="#A78BFA", line=dict(color="#FFFFFF", width=1.2)),
+        marker=dict(symbol="circle", size=12, color="#A855F7", line=dict(color="#FFFFFF", width=1.3)),
         text=[" Equal Weight"], textposition="top left",
-        textfont=dict(family="JetBrains Mono", size=9, color="#A78BFA"),
+        textfont=dict(family="JetBrains Mono", size=9.5, color="#A855F7"),
         name="Equal Weight (1/N)",
         hovertemplate="<b>1/N Equal Weight</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra></extra>",
     ))
 
     apply_layout(
-        fig_ef, h=390,
+        fig_ef, h=400,
         xaxis_title="Annualized Volatility (%)",
         yaxis_title="Annualized Expected Return (%)",
         xaxis=dict(ticksuffix="%", showgrid=False),
-        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)"),
-        legend=dict(orientation="v", x=0.02, y=0.98, xanchor="left", yanchor="top", font=dict(size=9.5)),
+        yaxis=dict(ticksuffix="%", gridcolor="#2E3440"),
+        legend=dict(orientation="v", x=0.02, y=0.98, xanchor="left", yanchor="top", font=dict(size=9.5, color="#E2E8F0")),
     )
     st.plotly_chart(fig_ef, width="stretch", config={"displayModeBar": False})
 
@@ -1157,7 +1460,7 @@ with col_alloc:
     sec_header(
         "Optimal Asset Allocation Breakdown",
         badge=f"{len([k for k, v in ms_weights.items() if v > 0])} ALLOCATED",
-        color="#34D399",
+        color="#059669",
         info_id="info-alloc",
         info_html="""
 <h4>◉ Dynamic Max Sharpe Weights</h4>
@@ -1178,7 +1481,7 @@ with col_alloc:
         x=top_tickers,
         y=[ms_weights.get(t, 0.0) * 100 for t in top_tickers],
         name="Max Sharpe",
-        marker_color="#34D399",
+        marker_color="#10B981",
         hovertemplate="<b>%{x}</b><br>Max Sharpe: %{y:.2f}%<extra></extra>",
     ))
     fig_bar.add_trace(go.Bar(
@@ -1192,17 +1495,17 @@ with col_alloc:
         x=top_tickers,
         y=[ew_weights.get(t, 0.0) * 100 for t in top_tickers],
         name="Equal Weight",
-        marker_color="#A78BFA",
+        marker_color="#A855F7",
         hovertemplate="<b>%{x}</b><br>Equal Weight: %{y:.2f}%<extra></extra>",
     ))
 
     apply_layout(
-        fig_bar, h=390,
+        fig_bar, h=400,
         barmode="group",
         yaxis_title="Weight (%)",
-        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)"),
-        xaxis=dict(showgrid=False, tickangle=-40, tickfont=dict(size=9.5, family="JetBrains Mono")),
-        legend=dict(orientation="h", x=1.0, y=1.02, xanchor="right", font=dict(size=9.5)),
+        yaxis=dict(ticksuffix="%", gridcolor="#2E3440"),
+        xaxis=dict(showgrid=False, tickangle=-40, tickfont=dict(size=9.5, family="JetBrains Mono", color="#94A3B8")),
+        legend=dict(orientation="h", x=1.0, y=1.02, xanchor="right", font=dict(size=9.5, color="#E2E8F0")),
     )
     st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": False})
 
@@ -1210,7 +1513,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 7. ROW 4 — ROLLING RISK & CORRELATION MATRIX
+# 11. ROW 4 — ROLLING RISK & CORRELATION MATRIX
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-risk")
 col_rv, col_corr = st.columns([1.05, 0.95], gap="large")
@@ -1219,13 +1522,13 @@ with col_rv:
     sec_header(
         "Realized Rolling Volatility",
         badge="21D & 63D WINDOWS",
-        color="#34D399",
+        color="#059669",
         info_id="info-vol",
         info_html="""
 <h4>⚡ Realized Rolling Risk</h4>
 <p>Rolling volatility computed directly on the real historical returns of the Max Sharpe portfolio across the selected window:</p>
-<p>• <b style="color:#4F8EF7;">21-Day Window</b> — High-responsiveness short-term volatility<br>
-• <b style="color:#A78BFA;">63-Day Window</b> — Quarterly structural volatility trend</p>
+<p>• <b style="color:#38BDF8;">21-Day Window</b> — High-responsiveness short-term volatility<br>
+• <b style="color:#A855F7;">63-Day Window</b> — Quarterly structural volatility trend</p>
 """,
     )
 
@@ -1238,23 +1541,23 @@ with col_rv:
     fig_rv = go.Figure()
     fig_rv.add_trace(go.Scatter(
         x=vol_21.index, y=vol_21.values, name=f"{roll_window_short}d Realized Vol",
-        line=dict(color="#4F8EF7", width=2.2),
+        line=dict(color="#38BDF8", width=2.4),
         hovertemplate="%{x|%d %b %Y}<br>21d Vol: <b>%{y:.1f}%</b><extra></extra>",
     ))
     fig_rv.add_trace(go.Scatter(
         x=vol_63.index, y=vol_63.values, name=f"{roll_window_long}d Realized Vol",
-        line=dict(color="#A78BFA", width=2.0, dash="dash"),
+        line=dict(color="#A855F7", width=2.2, dash="dash"),
         hovertemplate="%{x|%d %b %Y}<br>63d Vol: <b>%{y:.1f}%</b><extra></extra>",
     ))
     fig_rv.add_hline(
-        y=ms_vol * 100, line=dict(color="#34D399", width=1.5, dash="dot"),
+        y=ms_vol * 100, line=dict(color="#10B981", width=1.8, dash="dot"),
         annotation_text=f"Sample Vol ({ms_vol*100:.1f}%)", annotation_position="right",
-        annotation_font=dict(color="#34D399", size=9, family="JetBrains Mono"),
+        annotation_font=dict(color="#10B981", size=9.5, family="JetBrains Mono"),
     )
 
     apply_layout(
-        fig_rv, h=325,
-        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)"),
+        fig_rv, h=340,
+        yaxis=dict(ticksuffix="%", gridcolor="#2E3440"),
         xaxis=dict(showgrid=False),
         hovermode="x unified",
     )
@@ -1264,7 +1567,7 @@ with col_corr:
     sec_header(
         "Pairwise Correlation Matrix",
         badge="REAL TIME-WINDOW COV",
-        color="#22D3EE",
+        color="#0284C7",
         info_id="info-corr",
         info_html="""
 <h4>◈ Cross-Asset Pearson Correlation</h4>
@@ -1272,7 +1575,6 @@ with col_corr:
 """,
     )
 
-    # Pick top 12 assets to keep heatmap clean and readable
     corr_assets = top_tickers[:12] if len(top_tickers) >= 4 else active_tickers[:12]
     corr_matrix = daily_rets[corr_assets].corr()
 
@@ -1280,23 +1582,23 @@ with col_corr:
         z=corr_matrix.values,
         x=list(corr_matrix.columns),
         y=list(corr_matrix.index),
-        colorscale=[[0, "#FB7185"], [0.35, "#3B1B26"], [0.5, "#0A0F1E"], [0.75, "#1E3A5F"], [1, "#4F8EF7"]],
+        colorscale=[[0, "#E11D48"], [0.35, "#78350F"], [0.5, "#1E222B"], [0.75, "#0369A1"], [1, "#38BDF8"]],
         zmin=-0.3, zmax=1.0,
         text=np.round(corr_matrix.values, 2),
         texttemplate="%{text:.2f}",
-        textfont=dict(size=8, family="JetBrains Mono", color="#E2E8F0"),
+        textfont=dict(size=8.5, family="JetBrains Mono", color="#FFFFFF"),
         hovertemplate="%{y} vs %{x}<br>Correlation: <b>%{z:.3f}</b><extra></extra>",
         colorbar=dict(
-            title=dict(text="ρ", font=dict(size=10, color="#64748B")),
-            tickfont=dict(family="JetBrains Mono", size=8, color="#64748B"),
-            thickness=8, len=0.8,
+            title=dict(text="ρ", font=dict(size=10, color="#94A3B8")),
+            tickfont=dict(family="JetBrains Mono", size=8.5, color="#94A3B8"),
+            thickness=9, len=0.8,
         ),
     ))
 
     apply_layout(
-        fig_hm, h=325,
-        xaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono"), tickangle=-45),
-        yaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono")),
+        fig_hm, h=340,
+        xaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono", color="#94A3B8"), tickangle=-45),
+        yaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono", color="#94A3B8")),
         margin=dict(l=5, r=40, t=35, b=50),
         showlegend=False,
     )
@@ -1306,7 +1608,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8. ROW 5 — ALLOCATION DONUT + HISTORICAL DRAWDOWN
+# 12. ROW 5 — ALLOCATION DONUT + HISTORICAL DRAWDOWN
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-portfolio")
 col_donut, col_dd = st.columns([0.85, 1.15], gap="large")
@@ -1315,7 +1617,7 @@ with col_donut:
     sec_header(
         "Max Sharpe Allocation Composition",
         badge="ACTIVE HOLDINGS",
-        color="#34D399",
+        color="#059669",
         info_id="info-pie",
         info_html="""
 <h4>◉ Portfolio Allocation Composition</h4>
@@ -1329,35 +1631,35 @@ with col_donut:
 
     donut_df = pd.DataFrame(list(non_zero_alloc.items()), columns=["ticker", "weight"]).sort_values("weight", ascending=False)
 
-    PALETTE = ["#34D399", "#4F8EF7", "#FBBF24", "#FB7185", "#A78BFA",
-               "#22D3EE", "#F97316", "#E879F9", "#38BDF8", "#84CC16", "#FCD34D", "#6EE7B7"]
+    PALETTE = ["#10B981", "#38BDF8", "#F59E0B", "#F43F5E", "#A855F7",
+               "#06B6D4", "#FB923C", "#F472B6", "#60A5FA", "#A3E635", "#FDE047", "#34D399"]
 
     fig_pie = go.Figure(go.Pie(
         labels=donut_df["ticker"],
         values=donut_df["weight"],
         hole=0.62,
-        marker=dict(colors=PALETTE[:len(donut_df)], line=dict(color="#050813", width=2)),
+        marker=dict(colors=PALETTE[:len(donut_df)], line=dict(color="#252830", width=2)),
         textinfo="label+percent",
-        textfont=dict(family="JetBrains Mono", size=9.5, color="#E2E8F0"),
+        textfont=dict(family="JetBrains Mono", size=9.5, color="#FFFFFF"),
         hovertemplate="<b>%{label}</b><br>Weight: %{percent}<extra></extra>",
         direction="clockwise",
         sort=True,
     ))
 
     fig_pie.add_annotation(
-        text=f"<b>{len(donut_df)}</b><br><span style='font-size:9px;color:#64748B'>STOCKS</span>",
+        text=f"<b>{len(donut_df)}</b><br><span style='font-size:9px;color:#94A3B8'>STOCKS</span>",
         x=0.5, y=0.5, showarrow=False,
-        font=dict(family="JetBrains Mono", size=19, color="#E2E8F0"),
+        font=dict(family="JetBrains Mono", size=19, color="#FFFFFF"),
     )
 
-    apply_layout(fig_pie, h=330, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
+    apply_layout(fig_pie, h=345, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
     st.plotly_chart(fig_pie, width="stretch", config={"displayModeBar": False})
 
 with col_dd:
     sec_header(
         "Historical Underwater Drawdown (%)",
         badge=f"MAX DD: {max_dd_ms:.1f}%",
-        color="#FB7185",
+        color="#E11D48",
         info_id="info-dd",
         info_html="""
 <h4>📉 Peak-to-Trough Drawdown Analysis</h4>
@@ -1368,8 +1670,8 @@ with col_dd:
     fig_dd = go.Figure()
     fig_dd.add_trace(go.Scatter(
         x=dd_ms_series.index, y=dd_ms_series.values,
-        fill="tozeroy", fillcolor="rgba(251,113,133,0.08)",
-        line=dict(color="#FB7185", width=1.8), name="Max Sharpe DD",
+        fill="tozeroy", fillcolor="rgba(244,63,94,0.12)",
+        line=dict(color="#F43F5E", width=2.0), name="Max Sharpe DD",
         hovertemplate="%{x|%d %b %Y}<br>Drawdown: <b>%{y:.2f}%</b><extra></extra>",
     ))
 
@@ -1378,15 +1680,15 @@ with col_dd:
         fig_dd.add_annotation(
             x=min_idx, y=dd_ms_series.loc[min_idx],
             text=f"Trough: {max_dd_ms:.1f}%",
-            showarrow=True, arrowhead=2, arrowcolor="#FB7185",
-            font=dict(color="#FB7185", size=9.5, family="JetBrains Mono"),
-            bgcolor="rgba(251,113,133,0.12)", bordercolor="#FB7185",
+            showarrow=True, arrowhead=2, arrowcolor="#F43F5E",
+            font=dict(color="#F43F5E", size=9.5, family="JetBrains Mono"),
+            bgcolor="#4C0519", bordercolor="#F43F5E",
             borderwidth=1, borderpad=4, ay=-35,
         )
 
     apply_layout(
-        fig_dd, h=330,
-        yaxis=dict(ticksuffix="%", gridcolor="rgba(79,142,247,0.06)", zeroline=True, zerolinecolor="#1E293B", zerolinewidth=1),
+        fig_dd, h=345,
+        yaxis=dict(ticksuffix="%", gridcolor="#2E3440", zeroline=True, zerolinecolor="#64748B", zerolinewidth=1),
         xaxis=dict(showgrid=False),
         showlegend=False,
         hovermode="x",
@@ -1395,15 +1697,15 @@ with col_dd:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FOOTER
+# 13. FOOTER
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown("""
-<div class="glow-div" style="margin-top:2.5rem;"></div>
-<div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 1.2rem 0;">
-  <span style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:#475569;">
-    Quantitative Portfolio Risk Engine &nbsp;·&nbsp; Real Backend Connected (PyPortfolioOpt) &nbsp;·&nbsp; NIFTY 50 Universe
+<div class="glow-div" style="margin-top:3rem;"></div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 1.5rem 0;">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:#64748B;">
+    Quantitative Portfolio Risk Engine &nbsp;·&nbsp; Modern Portfolio Theory &nbsp;·&nbsp; NIFTY 50 Universe
   </span>
-  <span style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:#475569;">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:#64748B;">
     Streamlit + Plotly &nbsp;·&nbsp; IDSE Quant Lab © 2026
   </span>
 </div>
