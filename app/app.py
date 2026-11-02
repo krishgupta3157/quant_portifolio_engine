@@ -359,6 +359,103 @@ button[data-testid="stSidebarCollapseButton"] {
 .stMultiSelect [data-baseweb="tag"] { background: rgba(79,142,247,0.14) !important; border: 1px solid rgba(79,142,247,0.28) !important; color: #4F8EF7 !important; }
 .stRadio label { color: #E2E8F0 !important; font-size: 0.82rem !important; }
 .stSelectbox label, .stDateInput label { color: #94A3B8 !important; font-size: 0.78rem !important; font-weight: 600; }
+
+/* Material dashboard override */
+.stApp { background: #E9EDF2 !important; color: #263238 !important; }
+.stApp::before { display: none; }
+.block-container { padding: 5.5rem 3.25rem 3.5rem !important; max-width: 100% !important; }
+[data-testid="stSidebar"] {
+  background: linear-gradient(180deg, #0B1218 0%, #14232D 58%, #081017 100%) !important;
+  border-right: 2px solid #263E4D !important;
+  box-shadow: 5px 0 24px rgba(15, 23, 42, 0.28) !important;
+}
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] { color: #E5EEF4 !important; }
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
+  color: #FFFFFF !important;
+  background: linear-gradient(135deg, #075985, #0284C7) !important;
+  border: 1px solid #38BDF8 !important;
+  border-radius: 10px !important;
+  padding: 0.85rem 0.9rem !important;
+  margin: 0.2rem 0 1.15rem !important;
+  box-shadow: 0 5px 14px rgba(2, 132, 199, 0.30) !important;
+  letter-spacing: 0.01em !important;
+}
+[data-testid="stSidebar"] hr {
+  border-color: #385363 !important;
+  opacity: 0.9 !important;
+}
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong {
+  color: #DCEAF2 !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"] > div,
+[data-testid="stSidebar"] [data-baseweb="slider"] {
+  border-color: #476475 !important;
+}
+[data-testid="stSidebar"] [data-baseweb="select"] > div {
+  background: #1B2D39 !important;
+  color: #FFFFFF !important;
+}
+[data-testid="stSidebar"] [data-baseweb="tag"] {
+  background: #075985 !important;
+  border: 1px solid #38BDF8 !important;
+  color: #FFFFFF !important;
+}
+.qp-nav {
+  background: #FFFFFF;
+  border-bottom: 2px solid #CBD5E1;
+  box-shadow: 0 3px 12px rgba(15,23,42,0.14);
+}
+.nav-btn { color: #334155 !important; border: 1px solid transparent !important; }
+.nav-btn:hover { color: #075985 !important; background: #E0F2FE !important; border-color: #7DD3FC !important; }
+.nav-btn.active { color: #FFFFFF !important; background: #0284C7 !important; border-color: #0369A1 !important; box-shadow: 0 4px 10px rgba(2,132,199,.25); }
+.qp-right .regime-chip { border-color: #7DD3FC; background: #E0F2FE; color: #075985; }
+.qp-brand, .sec-title, .hero-sub, .hero-chip, .fc-lbl, .fc-dlt { color: #64748B !important; }
+.hero-title { background: linear-gradient(115deg, #263238 0%, #0288D1 70%, #00ACC1 100%); -webkit-background-clip: text; }
+.hero-sub, .hero-chip { color: #475569 !important; }
+.glow-div { background: linear-gradient(90deg, transparent, #94A3B8 35%, #CBD5E1 70%, transparent); }
+.sec-hdr { margin-top: 1.8rem; margin-bottom: 1rem; }
+.sec-badge { background: #E0F2FE; border-color: #BAE6FD; color: #0288D1; }
+.flip-wrap { height: 190px; }
+.flip-face {
+  border: 1px solid #CBD5E1;
+  border-radius: 10px;
+  box-shadow: 0 5px 12px rgba(15,23,42,0.14);
+}
+.flip-front { background: #FFFFFF; }
+.flip-back { background: #FFFFFF; border: 1px solid #7DD3FC; }
+.flip-wrap:hover .flip-face { border-color: #0284C7; box-shadow: 0 8px 20px rgba(15,23,42,0.20); }
+.metric-explanation {
+  min-height: 145px;
+  padding: 1rem 1.2rem;
+  border: 1px solid #0284C7;
+  border-radius: 10px;
+  background: #E0F2FE;
+  box-shadow: 0 5px 12px rgba(15,23,42,0.14);
+}
+.metric-explanation .fc-back-name { color: #0F172A; }
+.metric-explanation .fc-back-desc { color: #334155; }
+.info-panel { background: #FFFFFF; border: 1px solid #94A3B8; box-shadow: 0 5px 12px rgba(15,23,42,0.12); }
+.info-panel p, .info-panel h4 { color: #475569; }
+[data-testid="stPlotlyChart"] {
+  background: #F1F5F9;
+  border: 1px solid #94A3B8;
+  border-radius: 10px;
+  padding: 1rem 1rem 0.4rem;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 5px 12px rgba(15,23,42,0.18);
+}
+[data-testid="stHorizontalBlock"] { gap: 1.4rem !important; }
+[data-testid="stButton"] button {
+  border-radius: 8px !important;
+  border: 1px solid #0284C7 !important;
+  background: #F0F9FF !important;
+  color: #075985 !important;
+  box-shadow: 0 3px 7px rgba(15,23,42,0.10) !important;
+  font-weight: 700 !important;
+}
+[data-testid="stButton"] button:hover { border-color: #0369A1 !important; background: #E0F2FE !important; }
 </style>
 
 <!-- Ambient blobs -->
@@ -368,9 +465,7 @@ button[data-testid="stSidebarCollapseButton"] {
 
 <!-- ═══ NAVBAR ═══ -->
 <nav class="qp-nav">
-  <button class="nav-sidebar-btn" onclick="toggleSidebar()" title="Toggle Strategy & Universe Side Panel" style="margin-right:1.3rem;">
-    <span class="ni">☰</span> FILTERS &amp; SETTINGS
-  </button>
+  <a class="nav-btn active" href="#sec-kpi" style="margin-right:1.3rem;"><span class="ni">☰</span> DASHBOARD</a>
   <div class="qp-brand">QUANT <span class="hi">ENGINE</span></div>
   <div class="qp-links">
     <a class="nav-btn active" href="#sec-kpi"><span class="ni">◈</span>Overview</a>
@@ -380,37 +475,11 @@ button[data-testid="stSidebarCollapseButton"] {
     <a class="nav-btn" href="#sec-portfolio"><span class="ni">◉</span>Asset Weights</a>
   </div>
   <div class="qp-right">
-    <button class="nav-sidebar-btn" onclick="toggleSidebar()" title="Configure Universe & Risk-Free Rate" style="font-size:0.68rem;padding:0.25rem 0.65rem;">
-      ⚙️ UNIVERSE &amp; Rf
-    </button>
+    <span class="regime-chip">⚙ FILTERS IN SIDEBAR</span>
     <div class="regime-chip"><span class="rdot"></span>BACKEND CONNECTED</div>
   </div>
 </nav>
 
-<script>
-function toggleSidebar() {
-  var expandBtn = document.querySelector('[data-testid="collapsedControl"] button')
-               || document.querySelector('[data-testid="collapsedControl"]')
-               || document.querySelector('header button[kind="header"]');
-  var collapseBtn = document.querySelector('[data-testid="stSidebarCollapseButton"] button')
-                 || document.querySelector('[data-testid="stSidebarCollapseButton"]');
-  if (expandBtn && expandBtn.offsetParent !== null) {
-    expandBtn.click();
-  } else if (collapseBtn && collapseBtn.offsetParent !== null) {
-    collapseBtn.click();
-  } else if (expandBtn) {
-    expandBtn.click();
-  } else if (collapseBtn) {
-    collapseBtn.click();
-  }
-}
-function toggleInfo(id) {
-  var el = document.getElementById(id);
-  if (!el) return;
-  var open = el.classList.contains('open');
-  el.classList.toggle('open', !open);
-}
-</script>
 """, unsafe_allow_html=True)
 
 
@@ -458,6 +527,31 @@ hero_placeholder = st.empty()
 HORIZONS = ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "3 Years", "5 Years", "Max", "Custom"]
 
 with st.container():
+    settings_popover = st.popover("⚙ Manage Companies & Rate", use_container_width=False)
+    with settings_popover:
+        st.markdown("#### Strategy & Filter Parameters")
+        selected_assets = st.multiselect(
+            "Companies / Asset Universe",
+            options=all_surviving_tickers,
+            default=all_surviving_tickers,
+            help="Select the companies included in the portfolio calculations.",
+            key="sb_universe_select",
+        )
+        if not selected_assets:
+            selected_assets = all_surviving_tickers[:10]
+            st.info("Defaulted to top 10 assets because selection was empty.")
+        rf_rate_pct = st.slider(
+            "Risk-Free Rate (Rf %)",
+            min_value=2.0,
+            max_value=10.0,
+            value=6.5,
+            step=0.25,
+            help="Annualised risk-free rate used for Sharpe ratio calculation.",
+            key="sb_rf_slider",
+        )
+        st.caption("Changes apply to the portfolio calculations and charts.")
+    rf_rate = rf_rate_pct / 100.0
+
     st.markdown("""
     <div style="display:flex;align-items:center;justify-content:space-between;margin:0.1rem 0 0.5rem 0;flex-wrap:wrap;gap:0.7rem;">
       <div style="display:flex;align-items:center;gap:0.6rem;">
@@ -466,9 +560,7 @@ with st.container():
         </span>
         <span style="font-size:0.73rem;color:#94A3B8;">Click any horizon below for instant portfolio recalculation &amp; chart updates:</span>
       </div>
-      <button class="nav-sidebar-btn" onclick="toggleSidebar()" style="margin:0;font-size:0.72rem;padding:0.32rem 0.85rem;" title="Open Side Panel for Stock Universe & Risk-Free Rate">
-        ⚙️ Settings &amp; Universe (Side Panel)
-      </button>
+      <span class="nav-btn" style="margin:0;font-size:0.72rem;padding:0.32rem 0.85rem;">⚙ Settings &amp; Universe in sidebar</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -517,30 +609,10 @@ with st.sidebar:
     st.markdown("---")
     st.markdown(f"**Selected Time Horizon:** `{time_horizon}`")
     st.markdown("<span style='font-size:0.75rem;color:#94A3B8;'>You can also click any horizon directly in the toolbar on the main dashboard.</span>", unsafe_allow_html=True)
-
-    # Asset Universe selector (defaults to all surviving NIFTY stocks)
-    selected_assets = st.multiselect(
-        "Asset Universe (NIFTY 50)",
-        options=all_surviving_tickers,
-        default=all_surviving_tickers,
-        help="Select any subset of surviving NIFTY stocks. By default all 42 surviving institutional stocks are included.",
-        key="sb_universe_select"
-    )
-
-    if not selected_assets:
-        selected_assets = all_surviving_tickers[:10]
-        st.info("ℹ Defaulted to top 10 assets because selection was empty.")
-
     st.markdown("---")
-
-    # Risk-free rate (Annualised)
-    rf_rate_pct = st.slider(
-        "Risk-Free Rate (Rf %)",
-        min_value=2.0, max_value=10.0, value=6.5, step=0.25,
-        help="Annualised risk-free rate used for Sharpe ratio calculation (Defaults to 6.5% for Indian 10-Yr G-Sec Yield).",
-        key="sb_rf_slider"
-    )
-    rf_rate = rf_rate_pct / 100.0
+    st.markdown("Use **Manage Companies & Rate** at the top-left to update the asset universe and risk-free rate.")
+    st.metric("Risk-Free Rate", f"{rf_rate_pct:.2f}%")
+    st.metric("Selected Companies", len(selected_assets))
 
     st.markdown("---")
     st.markdown(f"""
@@ -552,9 +624,6 @@ with st.sidebar:
       Total Trading Days: {len(master_prices):,}
     </div>
     <br>
-    <button class="nav-sidebar-btn" onclick="toggleSidebar()" style="width:100%;justify-content:center;margin:0;">
-      ◀ Collapse Side Panel
-    </button>
     """, unsafe_allow_html=True)
 
 
@@ -723,36 +792,53 @@ var_95_dollar = abs(var_95_pct) * 1_000_000
 # SHARED PLOTLY THEME
 # ─────────────────────────────────────────────────────────────────────────────
 PLAYOUT = dict(
-    template="plotly_dark",
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Plus Jakarta Sans, sans-serif", color="#64748B", size=11),
+    template="plotly_white",
+    paper_bgcolor="#F1F5F9",
+    plot_bgcolor="#E8EEF4",
+    font=dict(family="Plus Jakarta Sans, sans-serif", color="#1E293B", size=12),
     margin=dict(l=15, r=15, t=38, b=15),
     legend=dict(
-        bgcolor="rgba(10,15,30,0.85)", bordercolor="rgba(79,142,247,0.18)",
-        borderwidth=1, font=dict(size=11, color="#E2E8F0"),
+        bgcolor="#F8FAFC", bordercolor="#94A3B8",
+        borderwidth=1, font=dict(size=11, color="#1E293B"),
         orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
     ),
     xaxis=dict(showgrid=False, zeroline=False, showspikes=True,
+               tickfont=dict(color="#334155", size=11),
+               title_font=dict(color="#1E293B", size=12),
                spikecolor="#4F8EF7", spikethickness=1, spikedash="dot"),
-    yaxis=dict(showgrid=True, gridcolor="rgba(79,142,247,0.06)",
+    yaxis=dict(showgrid=True, gridcolor="#B8C5D1",
+               tickfont=dict(color="#334155", size=11),
+               title_font=dict(color="#1E293B", size=12),
                zeroline=False, showspikes=True,
                spikecolor="#4F8EF7", spikethickness=1, spikedash="dot"),
 )
 
 def apply_layout(fig, h=385, **kw):
     fig.update_layout(**{**PLAYOUT, "height": h, **kw})
+    fig.update_xaxes(
+        tickfont=dict(color="#334155", size=11),
+        title_font=dict(color="#1E293B", size=12),
+        linecolor="#64748B",
+        linewidth=1,
+    )
+    fig.update_yaxes(
+        tickfont=dict(color="#334155", size=11),
+        title_font=dict(color="#1E293B", size=12),
+        gridcolor="#B8C5D1",
+        linecolor="#64748B",
+        linewidth=1,
+    )
     return fig
 
 def anchor(sec_id):
     st.markdown(f'<div id="{sec_id}" class="sec-anchor"></div>', unsafe_allow_html=True)
 
+def _toggle_session_value(key: str) -> None:
+    st.session_state[key] = not st.session_state.get(key, False)
+
 def sec_header(title, badge="", color="#4F8EF7", info_id=None, info_html=""):
-    info_btn_html = ""
-    panel_html    = ""
     if info_id:
-        info_btn_html = f'<button class="info-btn" onclick="toggleInfo(\'{info_id}\')">ⓘ</button>'
-        panel_html    = f'<div id="{info_id}" class="info-panel">{info_html}</div>'
+        st.session_state.setdefault(info_id, False)
     badge_html = f'<span class="sec-badge">{badge}</span>' if badge else ""
     st.markdown(f"""
     <div class="sec-hdr">
@@ -761,35 +847,54 @@ def sec_header(title, badge="", color="#4F8EF7", info_id=None, info_html=""):
         <span class="sec-title">{title}</span>
         {badge_html}
       </div>
-      {info_btn_html}
     </div>
-    {panel_html}
     """, unsafe_allow_html=True)
+    if info_id:
+        st.button(
+            "ⓘ Details",
+            key=f"{info_id}_button",
+            on_click=_toggle_session_value,
+            args=(info_id,),
+        )
+        if st.session_state[info_id]:
+            st.markdown(f'<div class="info-panel open">{info_html}</div>', unsafe_allow_html=True)
 
 def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
               dlt_html, back_tag, back_tag_cls, back_name, desc, eq):
-    st.markdown(f"""
-    <div class="flip-wrap" id="fc-{card_id}" onclick="this.classList.toggle('flipped')">
-      <div class="flip-inner">
-        <div class="flip-face flip-front">
-          <div class="fc-bar" style="background:{bar_css};"></div>
-          <div class="fc-row1">
-            <span class="fc-lbl">{lbl}</span>
-            <span class="fc-ico">{icon}</span>
-          </div>
-          <div class="fc-val {val_cls}">{val_html}</div>
-          <div class="fc-dlt">{dlt_html}</div>
-          <div class="fc-hint">CLICK TO EXPLAIN</div>
-        </div>
-        <div class="flip-face flip-back">
+    state_key = f"card_{card_id}_details"
+    st.session_state.setdefault(state_key, False)
+    st.button(
+        "↔ " + ("Show metric" if st.session_state[state_key] else "Explain metric"),
+        key=f"{card_id}_toggle",
+        on_click=_toggle_session_value,
+        args=(state_key,),
+        use_container_width=True,
+    )
+    if st.session_state[state_key]:
+        st.markdown(f"""
+        <div class="metric-explanation">
           <div class="fc-back-tag {back_tag_cls}">{back_tag}</div>
           <div class="fc-back-name">{back_name}</div>
           <div class="fc-back-desc">{desc}</div>
           <div class="fc-back-eq">{eq}</div>
         </div>
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    else:
+        icon_colors = {
+            "cagr": "#43A047",
+            "sharpe": "#1E88E5",
+            "maxdd": "#E53935",
+            "var": "#FB8C00",
+        }
+        icon_color = icon_colors.get(card_id, "#0288D1")
+        st.markdown(f"""
+        <div class="flip-face flip-front" style="position:relative;min-height:145px;padding:0 1.2rem 1rem;">
+          <div class="fc-bar" style="background:{bar_css};"></div>
+          <div class="fc-row1"><span class="fc-lbl">{lbl}</span><span class="fc-ico" style="background:{icon_color};color:#fff;opacity:1;border-radius:8px;padding:.45rem .55rem;box-shadow:0 5px 10px rgba(15,23,42,.18);">{icon}</span></div>
+          <div class="fc-val {val_cls}">{val_html}</div>
+          <div class="fc-dlt">{dlt_html}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
