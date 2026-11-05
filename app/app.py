@@ -161,6 +161,29 @@ div[data-testid="stAppViewContainer"] > section.main {{
 }}
 .nav-btn .ni {{ font-size: 0.82rem; opacity: 0.9; }}
 
+.simulator-nav-button {{
+  position: fixed !important;
+  top: 9px;
+  right: 2rem;
+  z-index: 10001;
+}}
+
+.simulator-nav-button [data-testid="stButton"] button {{
+  padding: 0.42rem 1.05rem !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: #94A3B8 !important;
+  font-size: 0.78rem !important;
+}}
+
+.simulator-nav-button [data-testid="stButton"] button:hover {{
+  background: rgba(56, 189, 248, 0.12) !important;
+  border-color: #0284C7 !important;
+  color: #38BDF8 !important;
+  transform: translateY(-1px) !important;
+}}
+
 /* ═══════ OFF-CANVAS SETTINGS DRAWER ═══════ */
 section[data-testid="stSidebar"],
 div[data-testid="stSidebarContent"],
@@ -648,6 +671,10 @@ li[aria-selected="true"] {{
 <!-- ═══ SEMI-TRANSPARENT SETTINGS BACKDROP ═══ -->
 <div class="settings-backdrop" onclick="const b = Array.from(document.querySelectorAll('button')).find(el => el.innerText.includes('Close') || el.innerText.includes('✖')); if(b) b.click();"></div>
 """, unsafe_allow_html=True)
+
+with st.container(key="simulator_nav_button"):
+    if st.button("📈 Historical Simulator", key="nav_historical_simulator"):
+        st.switch_page("pages/1_📈_Historical_Simulator.py")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

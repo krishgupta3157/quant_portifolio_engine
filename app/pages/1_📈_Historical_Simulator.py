@@ -144,8 +144,14 @@ section.main > div.block-container {
   border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  min-height: 125px;
-  padding: 1rem 1.15rem;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  flex-wrap: wrap;
+  min-width: 0;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  padding: 1.5rem;
 }
 
 .kpi-label {
@@ -159,9 +165,12 @@ section.main > div.block-container {
 
 .kpi-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 1.35rem;
+  font-size: clamp(0.9rem, 1.45vw, 1.35rem);
   font-weight: 800;
   line-height: 1.25;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .kpi-note {
@@ -169,6 +178,28 @@ section.main > div.block-container {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.65rem;
   margin-top: 0.35rem;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+[data-testid="stHorizontalBlock"]:has(.kpi-card) {
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+[data-testid="stMetric"] {
+  min-width: 0 !important;
+  overflow: visible !important;
+  overflow-wrap: anywhere !important;
+  padding: 1rem 0.5rem !important;
+}
+
+[data-testid="stMetricValue"] {
+  font-size: clamp(0.95rem, 1.8vw, 1.5rem) !important;
+  max-width: 100% !important;
+  overflow-wrap: anywhere !important;
+  white-space: normal !important;
+  word-break: break-word !important;
 }
 
 .tone-blue { color: var(--blue); }
@@ -312,20 +343,20 @@ def snap_to_next_trading_day(requested_date: date) -> pd.Timestamp | None:
     return pd.Timestamp(master_prices.index[position])
 
 
-def shares_held_as_of(ledger: pd.DataFrame, ticker: str, as_of: pd.Timestamp) -> float:
+def shares_held_as_of(ledger: pd.DataFrame, ticker: str, as_of: pd.Timestamp) -> int:
     """Calculate the position available for a sell, including same-day trades."""
     matching = ledger[
         (ledger["Ticker"] == ticker) & (ledger["Date"] <= as_of)
     ]
     if matching.empty:
-        return 0.0
+        return 0
 
     signed_shares = np.where(
         matching["Action"].eq("Buy"),
-        matching["Shares"].to_numpy(dtype=float),
-        -matching["Shares"].to_numpy(dtype=float),
+        matching["Shares"].to_numpy(dtype=int),
+        -matching["Shares"].to_numpy(dtype=int),
     )
-    return float(np.sum(signed_shares))
+    return int(np.sum(signed_shares))
 
 
 def build_daily_holdings(
@@ -379,8 +410,42 @@ def net_capital_invested(ledger: pd.DataFrame) -> float:
     return float(buy_value - sell_value)
 
 
+def asset_cost_basis(ledger: pd.DataFrame, ticker: str) -> tuple[int, float]:
+    """Return remaining shares and weighted-average cost basis for one ticker."""
+    matching = ledger[ledger["Ticker"].eq(ticker)].sort_values(
+        "Date",
+        kind="stable",
+    )
+    shares_held = 0
+    cost_basis = 0.0
+
+    for trade in matching.itertuples(index=False):
+        shares = int(trade.Shares)
+        price = float(trade.Price)
+        if trade.Action == "Buy":
+            shares_held += shares
+            cost_basis += shares * price
+        elif shares_held > 0:
+            average_cost = cost_basis / shares_held
+            shares_held -= shares
+            cost_basis -= shares * average_cost
+
+    return shares_held, max(float(cost_basis), 0.0)
+
+
 def money(value: float) -> str:
     return f"₹{value:,.2f}"
+
+
+def money_compact(value: float) -> str:
+    """Format card values compactly while retaining commas for smaller values."""
+    sign = "-" if value < 0 else ""
+    magnitude = abs(float(value))
+    if magnitude >= 1_000_000_000:
+        return f"{sign}₹{magnitude / 1_000_000_000:,.2f}B"
+    if magnitude >= 10_000_000:
+        return f"{sign}₹{magnitude / 1_000_000:,.2f}M"
+    return money(value)
 
 
 def pct(value: float | None) -> str:
@@ -441,6 +506,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+if st.button("← Main Dashboard", key="back_to_dashboard"):
+    st.switch_page("app.py")
+
 st.markdown('<div class="section-title">Trade Ledger</div>', unsafe_allow_html=True)
 form_col, reset_col = st.columns([5, 1])
 
@@ -500,38 +568,35 @@ if execute_trade:
 
     if executed_date is not None:
         asset_price = master_prices.at[executed_date, selected_ticker]
-        first_asset_date = master_prices[selected_ticker].first_valid_index()
 
-        if first_asset_date is None or executed_date < first_asset_date:
+        if pd.isna(asset_price) or not np.isfinite(float(asset_price)) or float(asset_price) <= 0:
             st.error(
-                f"{selected_ticker} was not actively trading on "
-                f"{executed_date:%d %b %Y}; no historical price is available."
-            )
-        elif pd.isna(asset_price) or not np.isfinite(float(asset_price)) or float(asset_price) <= 0:
-            st.error(
-                f"No valid historical price is available for {selected_ticker} "
-                f"on {executed_date:%d %b %Y}."
+                "Trade Failed: Company was not public or trading on this date."
             )
         elif amount <= 0:
             st.error("Trade amount must be greater than zero.")
         else:
             existing_ledger = ledger_dataframe()
             price = float(asset_price)
-            shares = float(amount) / price
+            shares = int(float(amount) // price)
 
-            if selected_action == "Sell":
+            if shares < 1:
+                st.warning(
+                    "Amount too low to purchase a single whole share at current market price."
+                )
+            elif selected_action == "Sell":
                 available_shares = shares_held_as_of(
                     existing_ledger,
                     selected_ticker,
                     executed_date,
                 )
-                if shares > available_shares + 1e-10:
+                if shares > available_shares:
                     st.error(
-                        f"Cannot sell {shares:,.6f} shares of {selected_ticker}. "
-                        f"Only {max(available_shares, 0.0):,.6f} shares are held "
-                        f"on {executed_date:%d %b %Y}."
+                        f"Trade Failed: You only own {available_shares} shares of "
+                        f"{selected_ticker}. Cannot sell {shares}."
                     )
                 else:
+                    actual_value = float(shares * price)
                     st.session_state.trade_ledger.append(
                         {
                             "Date": executed_date,
@@ -539,14 +604,15 @@ if execute_trade:
                             "Action": selected_action,
                             "Shares": shares,
                             "Price": price,
-                            "Total Value": float(amount),
+                            "Total Value": actual_value,
                         }
                     )
                     st.success(
-                        f"Executed {selected_action.lower()} of {shares:,.6f} "
-                        f"{selected_ticker} shares at {money(price)}."
+                        f"Executed {selected_action.lower()} of {shares:,} "
+                        f"{selected_ticker} shares at {money(price)} each."
                     )
             else:
+                actual_value = float(shares * price)
                 st.session_state.trade_ledger.append(
                     {
                         "Date": executed_date,
@@ -554,12 +620,12 @@ if execute_trade:
                         "Action": selected_action,
                         "Shares": shares,
                         "Price": price,
-                        "Total Value": float(amount),
+                        "Total Value": actual_value,
                     }
                 )
                 st.success(
-                    f"Executed {selected_action.lower()} of {shares:,.6f} "
-                    f"{selected_ticker} shares at {money(price)}."
+                    f"Executed {selected_action.lower()} of {shares:,} "
+                    f"{selected_ticker} shares at {money(price)} each."
                 )
 
 
@@ -580,27 +646,43 @@ return_pct = (
     if capital_invested > 0
     else None
 )
+simulation_date = (
+    portfolio_value.index[-1]
+    if not portfolio_value.empty
+    else master_prices.index[-1]
+)
+first_trade_date = ledger["Date"].min() if not ledger.empty else None
+days_elapsed = (
+    int((simulation_date - first_trade_date).days)
+    if first_trade_date is not None
+    else 0
+)
+cagr_pct = (
+    ((current_value / capital_invested) ** (365.25 / days_elapsed) - 1) * 100
+    if days_elapsed > 0 and capital_invested > 0 and current_value >= 0
+    else 0.0
+)
 
 st.markdown('<div class="section-title">Portfolio Snapshot</div>', unsafe_allow_html=True)
-kpi_cols = st.columns(4)
+kpi_cols = st.columns(5)
 with kpi_cols[0]:
     render_kpi(
         "Net Capital Invested",
-        money(capital_invested),
+        money_compact(capital_invested),
         "Buy proceeds less withdrawals",
         "tone-blue",
     )
 with kpi_cols[1]:
     render_kpi(
         "Current Portfolio Value",
-        money(current_value),
+        money_compact(current_value),
         "Marked at latest historical close",
         "tone-blue",
     )
 with kpi_cols[2]:
     render_kpi(
         "Absolute Profit / Loss",
-        money(absolute_pnl),
+        money_compact(absolute_pnl),
         "Current value minus net capital",
         "tone-green" if absolute_pnl >= 0 else "tone-red",
     )
@@ -611,6 +693,13 @@ with kpi_cols[3]:
         "Relative to net capital invested",
         "tone-green" if return_pct is None or return_pct >= 0 else "tone-red",
     )
+with kpi_cols[4]:
+    render_kpi(
+        "CAGR",
+        pct(cagr_pct),
+        f"Annualized over {days_elapsed} days",
+        "tone-green" if cagr_pct >= 0 else "tone-red",
+    )
 
 st.markdown('<div class="section-title">Portfolio Value Through Time</div>', unsafe_allow_html=True)
 if portfolio_value.empty:
@@ -619,11 +708,16 @@ if portfolio_value.empty:
         unsafe_allow_html=True,
     )
 else:
+    chart_values = (
+        pd.to_numeric(portfolio_value, errors="coerce")
+        .replace([np.inf, -np.inf], np.nan)
+        .dropna()
+    )
     value_fig = go.Figure()
     value_fig.add_trace(
         go.Scatter(
-            x=portfolio_value.index,
-            y=portfolio_value,
+            x=chart_values.index,
+            y=chart_values.to_numpy(dtype=float),
             mode="lines",
             name="Portfolio value",
             line={"color": "#38BDF8", "width": 2.5},
@@ -632,10 +726,63 @@ else:
             hovertemplate="%{x|%d %b %Y}<br>Value: ₹%{y:,.2f}<extra></extra>",
         )
     )
+
+    buy_trades = ledger[ledger["Action"].eq("Buy")]
+    sell_trades = ledger[ledger["Action"].eq("Sell")]
+
+    if not buy_trades.empty:
+        buy_dates = buy_trades["Date"]
+        buy_values = chart_values.reindex(buy_dates).to_numpy(dtype=float)
+        value_fig.add_trace(
+            go.Scatter(
+                x=buy_dates,
+                y=buy_values,
+                mode="markers",
+                name="Buy trades",
+                marker={
+                    "symbol": "triangle-up",
+                    "color": "green",
+                    "size": 12,
+                    "line": {"color": "#FFFFFF", "width": 1},
+                },
+                customdata=buy_trades[["Ticker", "Shares"]].to_numpy(),
+                hovertemplate=(
+                    "Bought %{customdata[1]:.0f} shares of %{customdata[0]}"
+                    "<br>%{x|%d %b %Y}<extra></extra>"
+                ),
+            )
+        )
+
+    if not sell_trades.empty:
+        sell_dates = sell_trades["Date"]
+        sell_values = chart_values.reindex(sell_dates).to_numpy(dtype=float)
+        value_fig.add_trace(
+            go.Scatter(
+                x=sell_dates,
+                y=sell_values,
+                mode="markers",
+                name="Sell trades",
+                marker={
+                    "symbol": "triangle-down",
+                    "color": "red",
+                    "size": 12,
+                    "line": {"color": "#FFFFFF", "width": 1},
+                },
+                customdata=sell_trades[["Ticker", "Shares"]].to_numpy(),
+                hovertemplate=(
+                    "Sold %{customdata[1]:.0f} shares of %{customdata[0]}"
+                    "<br>%{x|%d %b %Y}<extra></extra>"
+                ),
+            )
+        )
+
     value_fig.update_layout(
         **chart_layout(470),
         hovermode="x unified",
-        showlegend=False,
+        showlegend=True,
+        uirevision=f"portfolio-{len(ledger)}",
+        xaxis_autorange=True,
+        yaxis_autorange=True,
         title={
             "text": (
                 f"Simulation window: {portfolio_value.index.min():%d %b %Y}"
@@ -686,11 +833,14 @@ with holdings_col:
                 hovertemplate="%{label}<br>Value: ₹%{value:,.2f}<extra></extra>",
             )
         )
-        donut_fig.update_layout(
-            **chart_layout(390),
-            showlegend=False,
-            margin={"l": 12, "r": 12, "t": 18, "b": 12},
+        layout_args = chart_layout(390)
+        layout_args.update(
+            {
+                "showlegend": False,
+                "margin": {"l": 12, "r": 12, "t": 18, "b": 12},
+            }
         )
+        donut_fig.update_layout(**layout_args)
         st.plotly_chart(donut_fig, width="stretch", config={"displayModeBar": False})
 
 with transactions_col:
@@ -703,13 +853,14 @@ with transactions_col:
     else:
         display_ledger = ledger.copy()
         display_ledger["Date"] = display_ledger["Date"].dt.date
+        display_ledger["Shares"] = display_ledger["Shares"].astype("int64")
         st.dataframe(
             display_ledger.iloc[::-1],
             hide_index=True,
-            width="stretch",
+            use_container_width=True,
             column_config={
                 "Date": st.column_config.DateColumn("Date", format="DD MMM YYYY"),
-                "Shares": st.column_config.NumberColumn("Shares", format="%.6f"),
+                "Shares": st.column_config.NumberColumn("Shares", format="%d"),
                 "Price": st.column_config.NumberColumn("Price", format="₹ %.2f"),
                 "Total Value": st.column_config.NumberColumn(
                     "Total Value",
@@ -718,3 +869,85 @@ with transactions_col:
             },
         )
 
+st.markdown(
+    '<div class="section-title">Individual Holding Inspector</div>',
+    unsafe_allow_html=True,
+)
+latest_holdings = (
+    daily_holdings.iloc[-1]
+    if not daily_holdings.empty
+    else pd.Series(dtype=float)
+)
+held_tickers = sorted(
+    ticker for ticker, shares in latest_holdings.items() if float(shares) > 0
+)
+
+if not held_tickers:
+    st.markdown(
+        '<div class="empty-state">No open holdings to inspect.</div>',
+        unsafe_allow_html=True,
+    )
+else:
+    inspected_ticker = st.selectbox(
+        "Select an open holding",
+        options=held_tickers,
+        key="inspected_ticker",
+    )
+    inspected_shares, invested_capital = asset_cost_basis(
+        ledger,
+        inspected_ticker,
+    )
+    current_price = float(master_prices.at[simulation_date, inspected_ticker])
+    inspected_value = inspected_shares * current_price
+    inspected_pnl = inspected_value - invested_capital
+    inspected_return = (
+        inspected_pnl / invested_capital * 100
+        if invested_capital > 0
+        else None
+    )
+
+    inspector_cols = st.columns(5)
+    with inspector_cols[0]:
+        st.metric("Shares Held", f"{inspected_shares:,}")
+    with inspector_cols[1]:
+        st.metric("Invested Capital", money_compact(invested_capital))
+    with inspector_cols[2]:
+        st.metric("Current Market Price", money_compact(current_price))
+    with inspector_cols[3]:
+        st.metric("Current Total Value", money_compact(inspected_value))
+    with inspector_cols[4]:
+        st.metric(
+            "Net PnL",
+            money_compact(inspected_pnl),
+            delta=pct(inspected_return),
+            delta_color="normal",
+        )
+
+st.markdown(
+    '<div class="section-title">Transaction Ledger</div>',
+    unsafe_allow_html=True,
+)
+if ledger.empty:
+    st.markdown(
+        '<div class="empty-state">Your executed trades will appear here.</div>',
+        unsafe_allow_html=True,
+    )
+else:
+    ledger_display = ledger.copy()
+    ledger_display["Date"] = ledger_display["Date"].dt.strftime("%d %b %Y")
+    ledger_display["Shares"] = ledger_display["Shares"].astype("int64")
+    ledger_display["Price"] = ledger_display["Price"].round(2)
+    ledger_display["Total Value"] = ledger_display["Total Value"].round(2)
+    st.dataframe(
+        ledger_display.iloc[::-1],
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Shares": st.column_config.NumberColumn("Shares", format="%d"),
+            "Price": st.column_config.NumberColumn("Price", format="₹ %.2f"),
+            "Total Value": st.column_config.NumberColumn(
+                "Total Value",
+                format="₹ %.2f",
+            ),
+        },
+    )
