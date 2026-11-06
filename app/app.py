@@ -414,7 +414,8 @@ with right_column:
 """,
             unsafe_allow_html=True,
         )
-        st.button("Module in development", key="ml_engine", disabled=True, use_container_width=True)
+        if st.button("Open ML risk engine  →", key="ml_engine", use_container_width=True):
+            st.switch_page("pages/4_🤖_ML_Risk_Engine.py")
 
 
 st.markdown('<div class="terminal-title">// system activity log</div>', unsafe_allow_html=True)
