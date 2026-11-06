@@ -32,7 +32,9 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+from src.theme import apply_global_theme
 from src.data_loader import LocalDataLoader
+apply_global_theme()
 
 
 # --------------------------------------------------------------------------- #
@@ -44,13 +46,13 @@ st.markdown(
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg-app: #121418;
-  --bg-card: #252830;
-  --bg-card-sub: #1A1D24;
-  --border: #3A3F4D;
+  --bg-app: #0F172A;
+  --bg-card: #1E293B;
+  --bg-card-sub: #172033;
+  --border: #334155;
   --blue: #38BDF8;
-  --blue-dark: #0284C7;
-  --text: #E2E8F0;
+  --blue-dark: #0EA5E9;
+  --text: #F8FAFC;
   --muted: #94A3B8;
   --green: #10B981;
   --red: #F43F5E;
@@ -467,21 +469,21 @@ def render_kpi(label: str, value: str, note: str, tone: str) -> None:
 
 def chart_layout(height: int) -> dict[str, Any]:
     return {
-        "template": "plotly_white",
+        "template": "plotly_dark",
         "height": height,
         "margin": {"l": 12, "r": 18, "t": 22, "b": 12},
-        "paper_bgcolor": "#252830",
-        "plot_bgcolor": "#252830",
-        "font": {"family": "Plus Jakarta Sans, sans-serif", "color": "#E2E8F0"},
-        "legend": {"font": {"color": "#CBD5E1"}},
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "font": {"family": "Inter, sans-serif", "color": "#F8FAFC"},
+        "legend": {"font": {"color": "#F8FAFC"}},
         "xaxis": {
-            "gridcolor": "#3A3F4D",
-            "linecolor": "#3A3F4D",
+            "gridcolor": "#334155",
+            "linecolor": "#475569",
             "tickfont": {"color": "#94A3B8"},
         },
         "yaxis": {
-            "gridcolor": "#3A3F4D",
-            "linecolor": "#3A3F4D",
+            "gridcolor": "#334155",
+            "linecolor": "#475569",
             "tickfont": {"color": "#94A3B8"},
             "tickprefix": "₹",
             "tickformat": ",.0f",
@@ -722,7 +724,7 @@ else:
             name="Portfolio value",
             line={"color": "#38BDF8", "width": 2.5},
             fill="tozeroy",
-            fillcolor="rgba(56, 189, 248, 0.18)",
+            fillcolor="rgba(56, 189, 248, 0.14)",
             hovertemplate="%{x|%d %b %Y}<br>Value: ₹%{y:,.2f}<extra></extra>",
         )
     )
@@ -741,7 +743,7 @@ else:
                 name="Buy trades",
                 marker={
                     "symbol": "triangle-up",
-                    "color": "green",
+                    "color": "#10B981",
                     "size": 12,
                     "line": {"color": "#FFFFFF", "width": 1},
                 },
@@ -764,7 +766,7 @@ else:
                 name="Sell trades",
                 marker={
                     "symbol": "triangle-down",
-                    "color": "red",
+                    "color": "#E11D48",
                     "size": 12,
                     "line": {"color": "#FFFFFF", "width": 1},
                 },
@@ -817,17 +819,17 @@ with holdings_col:
                 values=current_holdings.values,
                 hole=0.62,
                 textinfo="label+percent",
-                textfont={"color": "#E2E8F0", "size": 11},
+                textfont={"color": "#F8FAFC", "size": 11},
                 marker={
                     "colors": [
-                        "#38BDF8",
-                        "#10B981",
-                        "#F59E0B",
-                        "#A78BFA",
-                        "#F43F5E",
-                        "#14B8A6",
-                        "#FB7185",
-                        "#60A5FA",
+                        "#79E8A1",
+                        "#55D987",
+                        "#B0F2C0",
+                        "#4DBB79",
+                        "#F4C66B",
+                        "#8BD8A6",
+                        "#FF7185",
+                        "#B7EAC5",
                     ]
                 },
                 hovertemplate="%{label}<br>Value: ₹%{value:,.2f}<extra></extra>",

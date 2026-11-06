@@ -34,8 +34,10 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+from src.theme import apply_global_theme
 from src.data_loader import LocalDataLoader
 from src.optimization import PortfolioOptimizer
+apply_global_theme()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1B. DRAWER STATE & SLIDE-OUT MECHANICS
@@ -61,16 +63,16 @@ st.markdown(f"""
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {{
-  --bg-app:     #121418;
-  --bg-card:    #252830;
-  --bg-card-sub:#1A1D24;
-  --bdr:        #3A3F4D;
-  --bdr-hover:  #38BDF8;
-  --primary:    #0284C7;
-  --primary-bg: rgba(56, 189, 248, 0.15);
-  --primary-dk: #0369A1;
-  --txt-dark:   #FFFFFF;
-  --txt-body:   #E2E8F0;
+  --bg-app:     #0F172A;
+  --bg-card:    #1E293B;
+  --bg-card-sub:#172033;
+  --bdr:        #334155;
+  --bdr-hover:  #475569;
+  --primary:    #38BDF8;
+  --primary-bg: rgba(56, 189, 248, 0.10);
+  --primary-dk: #0EA5E9;
+  --txt-dark:   #F8FAFC;
+  --txt-body:   #F8FAFC;
   --txt-muted:  #94A3B8;
   --green:      #10B981;
   --green-bg:   rgba(16, 185, 129, 0.15);
@@ -127,9 +129,9 @@ div[data-testid="stAppViewContainer"] > section.main {{
 .qp-nav {{
   position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
   z-index: 9998; display: flex; align-items: center; padding: 0 2rem;
-  background: #181B22;
-  border-bottom: 2px solid #2E3440;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  background: #1E293B;
+  border-bottom: 1px solid #334155;
+  box-shadow: none;
 }}
 .qp-brand {{
   font-size: 0.85rem; font-weight: 800; letter-spacing: 0.16em;
@@ -180,7 +182,7 @@ div[data-testid="stAppViewContainer"] > section.main {{
 
 .simulator-nav-button [data-testid="stButton"] button:hover {{
   background: rgba(56, 189, 248, 0.12) !important;
-  border-color: #0284C7 !important;
+  border-color: #38BDF8 !important;
   color: #38BDF8 !important;
   transform: translateY(-1px) !important;
 }}
@@ -230,7 +232,7 @@ div[data-testid="stSidebarContent"] {{
 
 [data-testid="stSidebar"] [data-baseweb="select"] > div {{
   background: #1A1D24 !important;
-  border: 1px solid #3A3F4D !important;
+  border: 1px solid #334155 !important;
   border-radius: 8px !important;
   color: #FFFFFF !important;
 }}
@@ -253,7 +255,7 @@ div[data-baseweb="popover"],
 div[data-baseweb="menu"],
 ul[role="listbox"] {{
   background-color: #1A1D24 !important;
-  border: 1px solid #3A3F4D !important;
+  border: 1px solid #334155 !important;
   color: #E2E8F0 !important;
 }}
 
@@ -286,7 +288,7 @@ li[aria-selected="true"] {{
 /* ═══════ BUTTON ANIMATIONS & ELEVATED PRO LOOK ═══════ */
 [data-testid="stButton"] button {{
   border-radius: 8px !important;
-  border: 1px solid #3A3F4D !important;
+  border: 1px solid #334155 !important;
   background: #252830 !important;
   color: #FFFFFF !important;
   font-weight: 700 !important;
@@ -313,7 +315,7 @@ li[aria-selected="true"] {{
 
 [data-testid="stSidebar"] [data-testid="stButton"] button {{
   background: #1A1D24 !important;
-  border: 1px solid #3A3F4D !important;
+  border: 1px solid #334155 !important;
   color: #FFFFFF !important;
   font-size: 0.76rem !important;
   font-weight: 600 !important;
@@ -372,7 +374,7 @@ li[aria-selected="true"] {{
 }}
 
 .flip-face {{
-  border: 1px solid #3A3F4D;
+  border: 1px solid #334155;
   border-radius: 12px;
   background: #252830;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
@@ -532,7 +534,7 @@ li[aria-selected="true"] {{
 
 .info-panel {{
   background: #252830;
-  border: 1px solid #3A3F4D;
+  border: 1px solid #334155;
   border-radius: 12px;
   padding: 1.1rem 1.35rem;
   margin-bottom: 1.25rem;
@@ -564,7 +566,7 @@ li[aria-selected="true"] {{
   font-size: 0.65rem;
   color: #38BDF8;
   background: #1A1D24;
-  border: 1px solid #0284C7;
+  border: 1px solid #38BDF8;
   border-radius: 6px;
   padding: 0.35rem 0.7rem;
   display: inline-block;
@@ -1120,22 +1122,22 @@ var_95_dollar = abs(var_95_pct) * 1_000_000
 # ─────────────────────────────────────────────────────────────────────────────
 PLAYOUT = dict(
     template="plotly_dark",
-    paper_bgcolor="#252830",
-    plot_bgcolor="#1A1D24",
-    font=dict(family="Plus Jakarta Sans, sans-serif", color="#E2E8F0", size=12),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter, sans-serif", color="#F8FAFC", size=12),
     margin=dict(l=18, r=18, t=42, b=18),
     legend=dict(
-        bgcolor="rgba(37, 40, 48, 0.95)", bordercolor="#3A3F4D",
-        borderwidth=1, font=dict(size=11, color="#E2E8F0"),
+        bgcolor="rgba(22, 27, 24, 0.95)", bordercolor="rgba(137,154,143,.20)",
+        borderwidth=1, font=dict(size=11, color="#F8FAFC"),
         orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
     ),
     xaxis=dict(showgrid=False, zeroline=False, showspikes=True,
                tickfont=dict(color="#94A3B8", size=11),
-               title_font=dict(color="#FFFFFF", size=12, family="Plus Jakarta Sans"),
+               title_font=dict(color="#F8FAFC", size=12, family="Inter"),
                spikecolor="#38BDF8", spikethickness=1, spikedash="dot"),
-    yaxis=dict(showgrid=True, gridcolor="#2E3440",
+    yaxis=dict(showgrid=True, gridcolor="#334155",
                tickfont=dict(color="#94A3B8", size=11),
-               title_font=dict(color="#FFFFFF", size=12, family="Plus Jakarta Sans"),
+               title_font=dict(color="#F8FAFC", size=12, family="Inter"),
                zeroline=False, showspikes=True,
                spikecolor="#38BDF8", spikethickness=1, spikedash="dot"),
 )
@@ -1144,15 +1146,15 @@ def apply_layout(fig, h=390, **kw):
     fig.update_layout(**{**PLAYOUT, "height": h, **kw})
     fig.update_xaxes(
         tickfont=dict(color="#94A3B8", size=11),
-        title_font=dict(color="#FFFFFF", size=12),
-        linecolor="#3A3F4D",
+        title_font=dict(color="#F8FAFC", size=12),
+        linecolor="#334155",
         linewidth=1,
     )
     fig.update_yaxes(
         tickfont=dict(color="#94A3B8", size=11),
-        title_font=dict(color="#FFFFFF", size=12),
-        gridcolor="#2E3440",
-        linecolor="#3A3F4D",
+        title_font=dict(color="#F8FAFC", size=12),
+        gridcolor="#334155",
+        linecolor="#334155",
         linewidth=1,
     )
     return fig
@@ -1380,7 +1382,7 @@ fig_main.add_trace(go.Scatter(
 
 apply_layout(
     fig_main, h=420,
-    yaxis=dict(tickprefix="₹", showgrid=True, gridcolor="#2E3440", zeroline=False),
+    yaxis=dict(tickprefix="₹", showgrid=True, gridcolor="#334155", zeroline=False),
     hovermode="x unified",
 )
 st.plotly_chart(fig_main, width="stretch", config={"displayModeBar": False})
@@ -1479,7 +1481,7 @@ with col_ef:
         xaxis_title="Annualized Volatility (%)",
         yaxis_title="Annualized Expected Return (%)",
         xaxis=dict(ticksuffix="%", showgrid=False),
-        yaxis=dict(ticksuffix="%", gridcolor="#2E3440"),
+        yaxis=dict(ticksuffix="%", gridcolor="#334155"),
         legend=dict(orientation="v", x=0.02, y=0.98, xanchor="left", yanchor="top", font=dict(size=9.5, color="#E2E8F0")),
     )
     st.plotly_chart(fig_ef, width="stretch", config={"displayModeBar": False})
@@ -1531,7 +1533,7 @@ with col_alloc:
         fig_bar, h=400,
         barmode="group",
         yaxis_title="Weight (%)",
-        yaxis=dict(ticksuffix="%", gridcolor="#2E3440"),
+        yaxis=dict(ticksuffix="%", gridcolor="#334155"),
         xaxis=dict(showgrid=False, tickangle=-40, tickfont=dict(size=9.5, family="JetBrains Mono", color="#94A3B8")),
         legend=dict(orientation="h", x=1.0, y=1.02, xanchor="right", font=dict(size=9.5, color="#E2E8F0")),
     )
@@ -1585,7 +1587,7 @@ with col_rv:
 
     apply_layout(
         fig_rv, h=340,
-        yaxis=dict(ticksuffix="%", gridcolor="#2E3440"),
+        yaxis=dict(ticksuffix="%", gridcolor="#334155"),
         xaxis=dict(showgrid=False),
         hovermode="x unified",
     )
@@ -1716,7 +1718,7 @@ with col_dd:
 
     apply_layout(
         fig_dd, h=345,
-        yaxis=dict(ticksuffix="%", gridcolor="#2E3440", zeroline=True, zerolinecolor="#64748B", zerolinewidth=1),
+        yaxis=dict(ticksuffix="%", gridcolor="#334155", zeroline=True, zerolinecolor="#475569", zerolinewidth=1),
         xaxis=dict(showgrid=False),
         showlegend=False,
         hovermode="x",

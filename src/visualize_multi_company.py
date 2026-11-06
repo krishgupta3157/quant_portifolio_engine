@@ -28,13 +28,13 @@ sys.path.insert(0, str(BASE_DIR / "src"))
 from data_loader import LocalDataLoader
 from optimization import PortfolioOptimizer
 
-# ── Aesthetic Theme (Dark Mode Institutional Theme) ──────────────────────────
-BG       = "#050813"
-SURF     = "#0A0F1E"
-GRID     = "rgba(79, 142, 247, 0.08)"
+# ── Aesthetic Theme (Light Institutional Theme) ─────────────────────────────
+BG       = "rgba(0,0,0,0)"
+SURF     = "rgba(0,0,0,0)"
+GRID     = "rgba(71, 85, 105, 0.12)"
 FONT_FAM = "Plus Jakarta Sans, -apple-system, sans-serif"
 MONO     = "JetBrains Mono, monospace"
-C_TEXT   = "#E2E8F0"
+C_TEXT   = "#1E293B"
 
 
 def inspect_raw_company_timeline(data_dir: str):

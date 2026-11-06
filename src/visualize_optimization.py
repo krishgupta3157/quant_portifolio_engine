@@ -28,19 +28,19 @@ sys.path.insert(0, str(BASE_DIR / "src"))
 from data_loader import LocalDataLoader
 from optimization import PortfolioOptimizer
 
-# ── Color Palette (Dark Mode Institutional Theme) ───────────────────────────
-BG        = "#050813"
-SURF      = "#0A0F1E"
-GRID      = "rgba(79, 142, 247, 0.08)"
+# ── Color Palette (Light Institutional Theme) ───────────────────────────────
+BG        = "rgba(0,0,0,0)"
+SURF      = "rgba(0,0,0,0)"
+GRID      = "rgba(71, 85, 105, 0.12)"
 FONT_FAM  = "Plus Jakarta Sans, -apple-system, sans-serif"
 MONO      = "JetBrains Mono, monospace"
 
 C_MAX_SHARPE = "#34D399"   # emerald green
-C_MIN_VOL    = "#38BDF8"   # sky blue
+C_MIN_VOL    = "#2563EB"   # deep blue
 C_EQUAL_WT   = "#A78BFA"   # purple / violet
 C_CAL        = "#FBBF24"   # gold
 C_MUTED      = "#64748B"
-C_TEXT       = "#E2E8F0"
+C_TEXT       = "#1E293B"
 
 
 def generate_portfolio_dashboard(
@@ -335,7 +335,7 @@ def generate_portfolio_dashboard(
         font=dict(family=FONT_FAM, color=C_TEXT),
         title=dict(
             text="<b>PORTFOLIO OPTIMIZATION RISK ENGINE</b> · Modern Portfolio Theory (NIFTY 50 Universe)",
-            font=dict(family=FONT_FAM, size=18, color="#FFFFFF"),
+            font=dict(family=FONT_FAM, size=18, color="#F8FAFC"),
             x=0.03, y=0.98,
         ),
         height=940,

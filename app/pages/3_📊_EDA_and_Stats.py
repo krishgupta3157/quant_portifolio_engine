@@ -22,7 +22,9 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+from src.theme import apply_global_theme
 from src.data_loader import LocalDataLoader
+apply_global_theme()
 
 
 st.markdown(
@@ -31,11 +33,11 @@ st.markdown(
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --bg: #121418;
-  --panel: #1A1C23;
-  --panel-soft: #252830;
-  --border: #3A3F4D;
-  --text: #E2E8F0;
+  --bg: #0F172A;
+  --panel: #1E293B;
+  --panel-soft: #172033;
+  --border: #334155;
+  --text: #F8FAFC;
   --muted: #94A3B8;
   --cyan: #38BDF8;
   --purple: #A78BFA;
@@ -225,11 +227,21 @@ def plot_layout(title: str, height: int = 480) -> dict[str, object]:
         "template": "plotly_dark",
         "title": {"text": title, "x": 0.02, "xanchor": "left"},
         "height": height,
-        "paper_bgcolor": "#1A1C23",
-        "plot_bgcolor": "#1A1C23",
-        "font": {"family": "Plus Jakarta Sans, sans-serif", "color": "#E2E8F0"},
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "font": {"family": "Inter, sans-serif", "color": "#F8FAFC"},
         "margin": {"l": 55, "r": 24, "t": 62, "b": 52},
-        "hoverlabel": {"bgcolor": "#252830", "font": {"color": "#FFFFFF"}},
+        "hoverlabel": {"bgcolor": "#1E293B", "font": {"color": "#F8FAFC"}},
+        "xaxis": {
+            "gridcolor": "#334155",
+            "linecolor": "#475569",
+            "tickfont": {"color": "#94A3B8"},
+        },
+        "yaxis": {
+            "gridcolor": "#334155",
+            "linecolor": "#475569",
+            "tickfont": {"color": "#94A3B8"},
+        },
     }
 
 

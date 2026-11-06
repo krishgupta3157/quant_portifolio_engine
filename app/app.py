@@ -2,8 +2,17 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import streamlit as st
 import streamlit.components.v1 as components
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from src.theme import apply_global_theme
 
 
 st.set_page_config(
@@ -12,6 +21,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+apply_global_theme()
 
 
 st.markdown(
@@ -20,22 +30,22 @@ st.markdown(
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 :root {
-  --ink: #0B0F19;
-  --panel: rgba(20, 25, 35, .72);
-  --line: rgba(148, 163, 184, .16);
-  --text: #E8EEF7;
-  --muted: #8290A6;
-  --cyan: #22D3EE;
+  --ink: #0F172A;
+  --panel: #1E293B;
+  --line: #334155;
+  --text: #F8FAFC;
+  --muted: #94A3B8;
+  --cyan: #38BDF8;
   --emerald: #34D399;
   --purple: #A78BFA;
-  --crimson: #FB7185;
+  --crimson: #F87171;
 }
 
 * { box-sizing: border-box; }
 .stApp {
   background:
-    radial-gradient(ellipse at 10% 0%, rgba(34, 211, 238, .10), transparent 34%),
-    radial-gradient(ellipse at 90% 15%, rgba(124, 58, 237, .12), transparent 30%),
+    radial-gradient(ellipse at 10% 0%, rgba(56, 189, 248, .06), transparent 34%),
+    radial-gradient(ellipse at 90% 15%, rgba(167, 139, 250, .06), transparent 30%),
     var(--ink) !important;
   color: var(--text) !important;
   font-family: 'Space Grotesk', sans-serif !important;
@@ -153,33 +163,33 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
   backdrop-filter: blur(14px);
   border: 1px solid var(--line);
   border-radius: 16px;
-  box-shadow: 0 16px 45px rgba(0,0,0,.24);
+  box-shadow: none;
   min-height: 325px;
   overflow: hidden;
   position: relative;
   transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
 }
 div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-  border-color: rgba(34, 211, 238, .7);
-  box-shadow: 0 22px 55px rgba(0,0,0,.42), 0 0 28px rgba(34,211,238,.10);
-  transform: translateY(-8px);
+  border-color: var(--cyan);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, .08);
+  transform: translateY(-2px);
 }
 div[data-testid="stVerticalBlockBorderWrapper"]:has(.emerald):hover {
   border-color: rgba(52, 211, 153, .75);
-  box-shadow: 0 22px 55px rgba(0,0,0,.42), 0 0 28px rgba(52,211,153,.12);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, .08);
 }
 div[data-testid="stVerticalBlockBorderWrapper"]:has(.purple):hover {
   border-color: rgba(167, 139, 250, .75);
-  box-shadow: 0 22px 55px rgba(0,0,0,.42), 0 0 28px rgba(167,139,250,.12);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, .08);
 }
 div[data-testid="stVerticalBlockBorderWrapper"]:has(.crimson):hover {
   border-color: rgba(251, 113, 133, .75);
-  box-shadow: 0 22px 55px rgba(0,0,0,.42), 0 0 28px rgba(251,113,133,.12);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, .08);
 }
 .card-content { padding-top: .15rem; position: relative; }
 .card-content:before {
   background: var(--card-color);
-  box-shadow: 0 0 18px var(--card-color);
+  box-shadow: none;
   content: "";
   height: 3px;
   left: -1rem;

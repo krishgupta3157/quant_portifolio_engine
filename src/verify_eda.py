@@ -33,13 +33,13 @@ from data_loader import LocalDataLoader
 from features    import FeatureEngineer
 
 # ── palette & shared style constants ────────────────────────────────────────
-BG        = "#050813"
-SURF      = "#0A0F1E"
-GRID      = "rgba(79,142,247,0.07)"
+BG        = "rgba(0,0,0,0)"
+SURF      = "rgba(0,0,0,0)"
+GRID      = "rgba(71,85,105,0.12)"
 FONT_FAM  = "Plus Jakarta Sans, Inter, sans-serif"
 MONO      = "JetBrains Mono, Consolas, monospace"
 
-C_PRICE   = "#E2E8F0"   # white-ish price line
+C_PRICE   = "#2563EB"   # deep blue price line
 C_CRISIS  = "#FB7185"   # rose  — crisis zones
 C_DD      = "#FB7185"   # drawdown fill
 C_VIX     = "#FBBF24"   # amber — VIX line
@@ -262,11 +262,11 @@ def build_eda_figure(df: pd.DataFrame) -> go.Figure:
         hovermode="x unified",
         hoverlabel=dict(
             bgcolor="rgba(10,15,35,0.92)", bordercolor="rgba(79,142,247,0.3)",
-            font=dict(family=MONO, size=11, color="#E2E8F0"),
+            font=dict(family=MONO, size=11, color="#F8FAFC"),
         ),
         legend=dict(
             bgcolor="rgba(10,15,30,0.85)", bordercolor="rgba(79,142,247,0.18)",
-            borderwidth=1, font=dict(size=11, color="#E2E8F0"),
+            borderwidth=1, font=dict(size=11, color="#F8FAFC"),
             orientation="h", yanchor="bottom", y=1.01,
             xanchor="right", x=1,
         ),
@@ -279,7 +279,7 @@ def build_eda_figure(df: pd.DataFrame) -> go.Figure:
                 "4,023 trading days · 2011→2026"
                 "</sup>"
             ),
-            font=dict(size=18, color="#E2E8F0", family=FONT_FAM),
+            font=dict(size=18, color="#F8FAFC", family=FONT_FAM),
             x=0.01,
         ),
     )
