@@ -5,6 +5,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import lightgbm as lgb
+import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -20,6 +23,11 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+from src.data_loader import LocalDataLoader
+from src.ml_risk_engine_test import (
+    engineer_features,
+)
+from src.optimization import PortfolioOptimizer
 from src.theme import apply_global_theme
 
 
@@ -139,50 +147,106 @@ section[data-testid="stSidebar"] {
 )
 
 
-TOP_NIFTY_STOCKS = ["RELIANCE", "HDFCBANK", "INFY", "TCS", "ICICIBANK"]
-AVAILABLE_ASSETS = [
-    "RELIANCE",
-    "HDFCBANK",
-    "INFY",
-    "TCS",
-    "ICICIBANK",
-    "BHARTIARTL",
-    "ITC",
-    "LT",
-    "SBIN",
-    "KOTAKBANK",
-]
+@st.cache_data(show_spinner="Loading the 42-asset price matrix...")
+def load_live_prices() -> pd.DataFrame:
+    """Load the same cleaned multi-asset matrix used by the test script."""
+    prices = LocalDataLoader().load_all_portfolio_assets(
+        str(BASE_DIR / "companies"),
+        missing_threshold=0.30,
+    )
+    return prices.apply(pd.to_numeric, errors="coerce").replace(
+        [np.inf, -np.inf],
+        np.nan,
+    ).dropna(axis=1, how="all").ffill().dropna(how="any")
+
+
+@st.cache_data(show_spinner="Engineering market risk features...")
+def build_live_features(prices: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+    """Build the validated feature matrix and future-volatility target."""
+    return engineer_features(prices)
+
+
+@st.cache_resource(show_spinner="Training LightGBM on the chronological training set...")
+def train_live_model(
+    x_train: pd.DataFrame,
+    y_train: pd.Series,
+) -> lgb.LGBMRegressor:
+    """Fit the validated conservative LightGBM configuration once per session."""
+    model = lgb.LGBMRegressor(
+        objective="regression",
+        n_estimators=100,
+        learning_rate=0.05,
+        max_depth=5,
+        num_leaves=15,
+        min_child_samples=30,
+        subsample=0.85,
+        colsample_bytree=0.85,
+        reg_alpha=0.05,
+        reg_lambda=0.10,
+        random_state=42,
+        verbosity=-1,
+    )
+    model.fit(x_train, y_train)
+    return model
+
+
+prices = load_live_prices()
+features, target = build_live_features(prices)
+split_at = int(len(features) * 0.70)
+x_train, x_test = features.iloc[:split_at], features.iloc[split_at:]
+y_train, y_test = target.iloc[:split_at], target.iloc[split_at:]
+model = train_live_model(x_train, y_train)
+crisis_threshold = float(y_train.quantile(0.75))
+
+test_start = x_test.index.min().date()
+test_end = x_test.index.max().date()
 
 with st.sidebar:
     st.markdown("### Simulation Controls")
-    st.caption("Static UI mockup inputs — model wiring is intentionally deferred.")
-    selected_assets = st.multiselect(
-        "Portfolio selector",
-        options=AVAILABLE_ASSETS,
-        default=TOP_NIFTY_STOCKS,
-        help="Choose the assets to include in the simulated risk scenario.",
-    )
-    shock_scenario = st.selectbox(
-        "Macro shock scenario",
-        options=[
-            "Normal Market",
-            "VIX Spike / Panic",
-            "Tech Sector Crash",
-            "Interest Rate Hike",
-        ],
-    )
-    risk_tolerance = st.slider(
-        "Target maximum annualized volatility",
-        min_value=5,
-        max_value=40,
-        value=20,
-        step=1,
-        format="%d%%",
+    st.caption("Run the trained LightGBM risk model at a historical test-set date.")
+    selected_date = st.date_input(
+        "Historical analysis date",
+        value=test_start,
+        min_value=test_start,
+        max_value=test_end,
+        help="Weekend selections use the nearest available trading-day features.",
     )
     st.divider()
     st.markdown("**Scenario status**")
-    st.markdown('<span class="status-pill">UI Mockup Active</span>', unsafe_allow_html=True)
-    st.caption(f"{len(selected_assets)} assets selected · {shock_scenario}")
+    st.markdown('<span class="status-pill">Live Model Active</span>', unsafe_allow_html=True)
+    st.caption(f"Test window: {test_start} → {test_end}")
+
+selected_timestamp = pd.Timestamp(selected_date)
+feature_lookup = features.reindex(
+    features.index.union(pd.DatetimeIndex([selected_timestamp]))
+).sort_index().ffill().bfill()
+selected_features = feature_lookup.loc[[selected_timestamp]]
+effective_date = selected_features.index[0]
+predicted_volatility = float(model.predict(selected_features)[0])
+is_crisis = predicted_volatility > crisis_threshold
+regime = "DEFENSE (Min Volatility)" if is_crisis else "OFFENSE (Max Sharpe)"
+regime_color = "#F87171" if is_crisis else "#34D399"
+
+price_history = prices.loc[:effective_date]
+optimizer = PortfolioOptimizer(price_history)
+max_sharpe_weights = optimizer.optimize_max_sharpe()
+min_volatility_weights = optimizer.optimize_min_volatility()
+selected_weights = min_volatility_weights if is_crisis else max_sharpe_weights
+selected_portfolio_label = "Min Volatility" if is_crisis else "Max Sharpe"
+
+recent_prices = price_history.tail(30)
+recent_returns = recent_prices.pct_change().dropna()
+recent_corr = recent_returns.corr().fillna(0.0)
+heatmap_assets = list(selected_weights)[:12]
+heatmap_assets = [asset for asset in heatmap_assets if asset in recent_corr.columns]
+if len(heatmap_assets) < 2:
+    heatmap_assets = list(recent_corr.columns[:5])
+correlation_matrix = recent_corr.loc[heatmap_assets, heatmap_assets]
+contagion_score = float(np.clip(correlation_matrix.where(
+    ~np.eye(len(correlation_matrix), dtype=bool)
+).stack().mean() * 10, 0, 10))
+rolling_peak = price_history.tail(30).max()
+recent_drawdown = float((price_history.iloc[-1] / rolling_peak - 1.0).min())
 
 st.markdown(
     """
@@ -197,7 +261,7 @@ st.markdown(
 <div class="architecture-banner">
   <b>Model Architecture:</b> LightGBM
   &nbsp;|&nbsp; <b>Validation:</b> 70/30 Chronological Split
-  &nbsp;|&nbsp; <b>Status:</b> UI Mockup Phase
+  &nbsp;|&nbsp; <b>Status:</b> Live Model Active
 </div>
 """,
     unsafe_allow_html=True,
@@ -208,17 +272,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    f'<div class="section-copy">Illustrative outputs for <b>{shock_scenario}</b> with a '
-    f'{risk_tolerance}% target volatility ceiling.</div>',
+    f'<div class="section-copy">Live LightGBM output for the nearest trading day '
+    f'<b>{effective_date.date()}</b>; crisis threshold: {crisis_threshold:.2%}.</div>',
     unsafe_allow_html=True,
 )
 
 kpi_columns = st.columns(4, gap="large")
 kpis = [
-    ("Predicted 30-Day Market Volatility", "18.5%", "Mock forecast · annualized"),
-    ("Recommended Portfolio Regime", "DEFENSIVE", "Signal confidence · 82%"),
-    ("Predicted Maximum Drawdown", "-12.4%", "Stress-window estimate"),
-    ("Contagion Risk Score", "7 / 10", "Cross-asset transmission"),
+    ("Predicted 30-Day Market Volatility", f"{predicted_volatility:.2%}", "Live LightGBM forecast"),
+    ("Recommended Portfolio Regime", regime, f"Threshold {crisis_threshold:.2%}"),
+    ("Recent Maximum Drawdown", f"{recent_drawdown:.2%}", "Trailing 30 trading days"),
+    ("Contagion Risk Score", f"{contagion_score:.1f} / 10", "Live 30-day correlation"),
 ]
 for column, (label, value, note) in zip(kpi_columns, kpis):
     with column:
@@ -238,37 +302,28 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div class="section-copy">This mockup will visualize how a crash in one stock '
-    'can affect the risk profile of the remaining assets.</div>',
+    '<div class="section-copy">Trailing 30-day realized correlations across the '
+    'assets receiving non-zero optimizer weights.</div>',
     unsafe_allow_html=True,
 )
 
-assets_for_chart = selected_assets or TOP_NIFTY_STOCKS
-mock_correlation = [
-    [1.00, .62, .48, .55, .66],
-    [.62, 1.00, .41, .58, .72],
-    [.48, .41, 1.00, .76, .35],
-    [.55, .58, .76, 1.00, .39],
-    [.66, .72, .35, .39, 1.00],
-]
-heatmap_assets = assets_for_chart[:5]
 heatmap = go.Figure(
     go.Heatmap(
-        z=[row[: len(heatmap_assets)] for row in mock_correlation[: len(heatmap_assets)]],
+        z=correlation_matrix.to_numpy(),
         x=heatmap_assets,
         y=heatmap_assets,
-        zmin=0,
+        zmin=-1,
         zmax=1,
-        colorscale=[[0, "#0F172A"], [.5, "#256D8F"], [1, "#38BDF8"]],
+        colorscale=[[0, "#F87171"], [.5, "#1E293B"], [1, "#38BDF8"]],
         texttemplate="%{z:.2f}",
         textfont={"color": "#F8FAFC", "size": 12},
-        hovertemplate="%{y} ↔ %{x}<br>Predicted correlation: %{z:.2f}<extra></extra>",
-        colorbar={"title": "Shift", "tickfont": {"color": "#94A3B8"}},
+        hovertemplate="%{y} ↔ %{x}<br>30-day correlation: %{z:.2f}<extra></extra>",
+        colorbar={"title": "Correlation", "tickfont": {"color": "#94A3B8"}},
     )
 )
 heatmap.update_layout(
     template="plotly_dark",
-    title={"text": "Predicted Asset Correlation Shift under Stress", "x": .02},
+    title={"text": "Live 30-Day Asset Correlation Map", "x": .02},
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font={"family": "Inter, sans-serif", "color": "#F8FAFC"},
@@ -282,46 +337,53 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div class="section-copy">Compare the current portfolio mix with the '
-    'illustrative ML-optimized allocation for the selected stress scenario.</div>',
+    f'<div class="section-copy">The model selected <b style="color:{regime_color}">'
+    f'{selected_portfolio_label}</b> weights for {effective_date.date()}.</div>',
     unsafe_allow_html=True,
 )
 
-allocation_assets = assets_for_chart[:5]
-current_allocation = [24, 21, 20, 19, 16][: len(allocation_assets)]
-optimized_allocation = [18, 27, 24, 16, 15][: len(allocation_assets)]
+weights = pd.Series(selected_weights, dtype=float).sort_values(ascending=False)
+allocation_assets = list(weights.head(12).index)
+other_weight = max(0.0, 1.0 - float(weights.head(12).sum()))
+if other_weight > 1e-4:
+    allocation_assets.append("OTHER")
+current_weights = pd.Series(1.0 / len(optimizer.tickers), index=optimizer.tickers)
+current_other_weight = max(
+    0.0,
+    1.0 - float(current_weights.reindex(weights.head(12).index).sum()),
+)
+current_allocation = [
+    current_other_weight if asset == "OTHER" else float(current_weights.get(asset, 0.0))
+    for asset in allocation_assets
+]
+optimized_allocation = [
+    float(weights.get(asset, other_weight if asset == "OTHER" else 0.0))
+    for asset in allocation_assets
+]
 allocation_chart = go.Figure()
-allocation_chart.add_trace(
-    go.Bar(
-        name="Current Allocation",
-        x=allocation_assets,
-        y=current_allocation,
-        marker_color="#64748B",
-        hovertemplate="%{x}<br>Current: %{y}%<extra></extra>",
+for asset_index, asset in enumerate(allocation_assets):
+    allocation_chart.add_trace(
+        go.Bar(
+            name=asset,
+            x=["Current Allocation", "ML Optimized Allocation"],
+            y=[current_allocation[asset_index], optimized_allocation[asset_index]],
+            marker_color="#38BDF8" if asset_index % 2 == 0 else "#34D399",
+            hovertemplate=f"{asset}<br>Weight: %{{y:.2%}}<extra></extra>",
+        )
     )
-)
-allocation_chart.add_trace(
-    go.Bar(
-        name="ML Optimized Allocation",
-        x=allocation_assets,
-        y=optimized_allocation,
-        marker_color="#34D399",
-        hovertemplate="%{x}<br>Optimized: %{y}%<extra></extra>",
-    )
-)
 allocation_chart.update_layout(
     template="plotly_dark",
-    barmode="group",
+    barmode="stack",
     title={"text": "Current vs ML Optimized Allocation", "x": .02},
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
     font={"family": "Inter, sans-serif", "color": "#F8FAFC"},
     xaxis={"showgrid": False, "tickfont": {"color": "#94A3B8"}},
-    yaxis={"title": "Portfolio weight (%)", "gridcolor": "#334155", "tickfont": {"color": "#94A3B8"}},
+    yaxis={"title": "Portfolio weight", "tickformat": ".0%", "gridcolor": "#334155", "tickfont": {"color": "#94A3B8"}},
     legend={"font": {"color": "#F8FAFC"}},
     margin={"l": 60, "r": 30, "t": 60, "b": 55},
     height=420,
 )
 st.plotly_chart(allocation_chart, use_container_width=True, config={"displayModeBar": False})
 
-st.caption("All values and visualizations on this page are static placeholders for the upcoming ML implementation.")
+st.caption("Live LightGBM prediction and PortfolioOptimizer output. Features are evaluated only through the selected historical date.")
