@@ -364,13 +364,14 @@ with left_column:
   <div class="card-icon">⌁</div>
   <div class="card-title">Exploratory Data Analysis &amp; Stats</div>
   <div class="card-description">Dive deep into the raw numbers. Visualize volatility, price distributions, moving averages, and asset correlations.</div>
-  <div class="card-meta">○ Pipeline queued</div>
-  <span class="badge">NumPy</span><span class="badge">Seaborn</span><span class="badge">Statistics</span>
+  <div class="card-meta">● Live module</div>
+  <span class="badge">Plotly</span><span class="badge">NumPy</span><span class="badge">Statistics</span>
 </div>
 """,
             unsafe_allow_html=True,
         )
-        st.button("Module in development", key="eda", disabled=True, use_container_width=True)
+        if st.button("Open EDA & stats  →", key="eda", use_container_width=True):
+            st.switch_page("pages/3_📊_EDA_and_Stats.py")
 
 with right_column:
     with st.container(border=True):
