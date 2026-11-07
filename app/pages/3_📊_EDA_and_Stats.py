@@ -24,6 +24,7 @@ if str(BASE_DIR) not in sys.path:
 
 from src.theme import apply_global_theme
 from src.data_loader import LocalDataLoader
+from src.sector_mapping import get_sector
 apply_global_theme()
 
 
@@ -284,6 +285,24 @@ if asset_returns.shape[1] < 2:
     st.stop()
 
 assets = sorted(asset_returns.columns.tolist())
+available_sectors = sorted({get_sector(asset) for asset in assets})
+with st.sidebar:
+    st.markdown("### Industry Filters")
+    selected_sectors = st.multiselect(
+        "Select Industry/Sector",
+        options=available_sectors,
+        key="eda_sector_filter",
+        help="Choose sectors to narrow the ticker universe used by the EDA views.",
+    )
+sector_assets = [
+    asset for asset in assets
+    if not selected_sectors or get_sector(asset) in selected_sectors
+]
+if not sector_assets:
+    st.warning("No companies match the selected sectors. Clear the sector filter to restore the full universe.")
+    st.stop()
+asset_returns = asset_returns.loc[:, sector_assets]
+assets = sector_assets
 daily_mean = asset_returns.mean()
 daily_std = asset_returns.std(ddof=1)
 annualized_return = daily_mean * 252
@@ -311,7 +330,7 @@ left, right = st.columns(2, gap="large")
 with left:
     default_assets = assets[: min(12, len(assets))]
     selected_assets = st.multiselect(
-        "Assets in correlation matrix (up to 15 recommended)",
+        "Select Assets/Tickers (up to 15 recommended)",
         options=assets,
         default=default_assets,
         key="correlation_assets",
@@ -343,6 +362,17 @@ with left:
     )
 
 with right:
+    sectors = pd.Series(assets, index=assets).map(get_sector)
+    sector_palette = {
+        "Financial Services": "#38BDF8",
+        "IT": "#A78BFA",
+        "Energy/Oil & Gas": "#F59E0B",
+        "FMCG": "#34D399",
+        "Healthcare": "#F43F5E",
+        "Automobile": "#FB923C",
+        "Metals & Mining": "#94A3B8",
+        "Cement/Construction": "#FDE047",
+    }
     scatter = go.Figure(
         go.Scatter(
             x=annualized_volatility,
@@ -353,25 +383,72 @@ with right:
             textfont={"size": 9, "color": "#CBD5E1"},
             marker={
                 "size": 10,
-                "color": annualized_return,
-                "colorscale": "IceFire",
-                "showscale": True,
-                "colorbar": {"title": "Ann. return"},
+                "color": [sector_palette.get(sector, "#CBD5E1") for sector in sectors],
+                "showscale": False,
                 "line": {"width": 1, "color": "#E2E8F0"},
             },
             customdata=np.column_stack(
-                [annualized_return.to_numpy(), annualized_volatility.to_numpy()]
+                [
+                    annualized_return.to_numpy(),
+                    annualized_volatility.to_numpy(),
+                    sectors.to_numpy(),
+                ]
             ),
             hovertemplate=(
                 "<b>%{text}</b><br>Annualized return: %{customdata[0]:.2%}"
-                "<br>Annualized volatility: %{customdata[1]:.2%}<extra></extra>"
+                "<br>Annualized volatility: %{customdata[1]:.2%}"
+                "<br>Sector: %{customdata[2]}<extra></extra>"
             ),
         )
     )
+    for sector, color in sector_palette.items():
+        if sector in set(sectors):
+            scatter.add_trace(
+                go.Scatter(
+                    x=[None],
+                    y=[None],
+                    mode="markers",
+                    name=sector,
+                    marker={"size": 9, "color": color},
+                    hoverinfo="skip",
+                    showlegend=True,
+                )
+            )
     scatter.update_layout(**plot_layout("Risk-return profile", height=530))
     scatter.update_xaxes(title="Annualized volatility", tickformat=".0%")
     scatter.update_yaxes(title="Annualized mean return", tickformat=".0%")
     st.plotly_chart(scatter, use_container_width=True)
+    sector_summary = pd.DataFrame(
+        {
+            "Sector": [get_sector(asset) for asset in assets],
+            "Annualized Return": annualized_return.to_numpy(),
+            "Annualized Volatility": annualized_volatility.to_numpy(),
+        }
+    ).groupby("Sector", as_index=False).mean()
+    sector_bar = go.Figure()
+    sector_bar.add_trace(
+        go.Bar(
+            x=sector_summary["Sector"],
+            y=sector_summary["Annualized Return"],
+            name="Average return",
+            marker_color="#38BDF8",
+            hovertemplate="%{x}<br>Average return: %{y:.2%}<extra></extra>",
+        )
+    )
+    sector_bar.add_trace(
+        go.Bar(
+            x=sector_summary["Sector"],
+            y=sector_summary["Annualized Volatility"],
+            name="Average volatility",
+            marker_color="#F59E0B",
+            hovertemplate="%{x}<br>Average volatility: %{y:.2%}<extra></extra>",
+        )
+    )
+    sector_bar.update_layout(barmode="group")
+    sector_bar.update_xaxes(tickangle=-35)
+    sector_bar.update_yaxes(tickformat=".0%")
+    sector_bar.update_layout(**plot_layout("Average Return and Volatility by Sector", height=420))
+    st.plotly_chart(sector_bar, use_container_width=True)
     st.markdown(
         '<div class="insight">The upward direction is the familiar risk-reward trade-off: higher expected return may come with greater dispersion. Outliers deserve further investigation rather than automatic selection.</div>',
         unsafe_allow_html=True,

@@ -34,6 +34,7 @@ if str(BASE_DIR) not in sys.path:
 
 from src.theme import apply_global_theme
 from src.data_loader import LocalDataLoader
+from src.sector_mapping import get_sector
 apply_global_theme()
 
 
@@ -308,6 +309,19 @@ if master_prices.empty or master_prices.columns.empty:
     st.stop()
 
 all_tickers = sorted(master_prices.columns.tolist())
+available_sectors = sorted({get_sector(ticker) for ticker in all_tickers})
+with st.sidebar:
+    st.markdown("### Industry Filters")
+    selected_sectors = st.multiselect(
+        "Select Industry/Sector",
+        options=available_sectors,
+        key="simulator_sector_filter",
+        help="Filter the trade-entry ticker dropdown by industry.",
+    )
+filtered_tickers = [
+    ticker for ticker in all_tickers
+    if not selected_sectors or get_sector(ticker) in selected_sectors
+]
 min_date = master_prices.index.min().date()
 max_date = master_prices.index.max().date()
 
@@ -519,7 +533,15 @@ with form_col:
     with st.form("trade_form", clear_on_submit=False):
         asset_col, date_col = st.columns(2)
         with asset_col:
-            selected_ticker = st.selectbox("Asset", options=all_tickers)
+            if not filtered_tickers:
+                st.warning("No companies match the selected sectors. Clear the sector filter to trade.")
+                selected_ticker = None
+            else:
+                selected_ticker = st.selectbox(
+                    "Asset",
+                    options=filtered_tickers,
+                    format_func=lambda ticker: f"{ticker} · {get_sector(ticker)}",
+                )
         with date_col:
             selected_date = st.date_input(
                 "Date",
@@ -556,7 +578,7 @@ with reset_col:
         st.success("Trade ledger cleared.")
 
 
-if execute_trade:
+if execute_trade and selected_ticker is not None:
     requested_date = pd.Timestamp(selected_date).normalize()
     executed_date = snap_to_next_trading_day(selected_date)
 
@@ -845,6 +867,30 @@ with holdings_col:
         donut_fig.update_layout(**layout_args)
         st.plotly_chart(donut_fig, width="stretch", config={"displayModeBar": False})
 
+        sector_holdings = (
+            pd.DataFrame(
+                {
+                    "Sector": [get_sector(ticker) for ticker in current_holdings.index],
+                    "Value": current_holdings.to_numpy(),
+                }
+            )
+            .groupby("Sector", as_index=False)["Value"]
+            .sum()
+        )
+        sector_donut = go.Figure(
+            go.Pie(
+                labels=sector_holdings["Sector"],
+                values=sector_holdings["Value"],
+                hole=0.62,
+                textinfo="label+percent",
+                textfont={"color": "#F8FAFC", "size": 10},
+                hovertemplate="%{label}<br>Sector value: ₹%{value:,.2f}<extra></extra>",
+            )
+        )
+        sector_donut.update_layout(**layout_args)
+        sector_donut.update_layout(title="Sector Weight Allocation")
+        st.plotly_chart(sector_donut, width="stretch", config={"displayModeBar": False})
+
 with transactions_col:
     st.markdown("#### Transaction History")
     if ledger.empty:
@@ -894,6 +940,10 @@ else:
         "Select an open holding",
         options=held_tickers,
         key="inspected_ticker",
+    )
+    st.markdown(
+        f'<span style="display:inline-block;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.4);border-radius:999px;color:#7DD3FC;font-family:JetBrains Mono,monospace;font-size:.7rem;letter-spacing:.06em;padding:.3rem .7rem;text-transform:uppercase;">Sector · {get_sector(inspected_ticker)}</span>',
+        unsafe_allow_html=True,
     )
     inspected_shares, invested_capital = asset_cost_basis(
         ledger,

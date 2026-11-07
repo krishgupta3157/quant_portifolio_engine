@@ -37,6 +37,7 @@ if str(BASE_DIR) not in sys.path:
 from src.theme import apply_global_theme
 from src.data_loader import LocalDataLoader
 from src.optimization import PortfolioOptimizer
+from src.sector_mapping import get_sector
 apply_global_theme()
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1684,6 +1685,47 @@ with col_donut:
 
     apply_layout(fig_pie, h=345, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
     st.plotly_chart(fig_pie, width="stretch", config={"displayModeBar": False})
+
+    sector_allocations = (
+        pd.DataFrame(
+            {
+                "sector": [get_sector(ticker) for ticker in non_zero_alloc],
+                "weight": list(non_zero_alloc.values()),
+            }
+        )
+        .groupby("sector", as_index=False)["weight"]
+        .sum()
+        .sort_values("weight", ascending=False)
+    )
+    sector_colors = [
+        "#38BDF8", "#A78BFA", "#34D399", "#F59E0B", "#F43F5E",
+        "#FB923C", "#94A3B8", "#FDE047", "#06B6D4", "#F472B6",
+    ]
+    sector_fig = go.Figure(
+        go.Pie(
+            labels=sector_allocations["sector"],
+            values=sector_allocations["weight"],
+            hole=0.62,
+            marker=dict(
+                colors=sector_colors[: len(sector_allocations)],
+                line=dict(color="#252830", width=2),
+            ),
+            textinfo="label+percent",
+            textfont=dict(family="JetBrains Mono", size=9, color="#FFFFFF"),
+            hovertemplate="<b>%{label}</b><br>Sector weight: %{percent}<extra></extra>",
+            sort=True,
+        )
+    )
+    sector_fig.add_annotation(
+        text=f"<b>{len(sector_allocations)}</b><br><span style='font-size:9px;color:#94A3B8'>SECTORS</span>",
+        x=0.5,
+        y=0.5,
+        showarrow=False,
+        font=dict(family="JetBrains Mono", size=19, color="#FFFFFF"),
+    )
+    apply_layout(sector_fig, h=345, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
+    st.markdown("#### Sector Allocation Breakdown")
+    st.plotly_chart(sector_fig, width="stretch", config={"displayModeBar": False})
 
 with col_dd:
     sec_header(

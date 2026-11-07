@@ -25,6 +25,7 @@ if str(BASE_DIR) not in sys.path:
 
 from src.data_loader import LocalDataLoader
 from src.ml_risk_engine_test import engineer_features
+from src.sector_mapping import get_sector
 from src.theme import apply_global_theme
 
 
@@ -194,12 +195,23 @@ def main() -> None:
     )
 
     available_tickers = sorted(prices.columns.tolist())
+    available_sectors = sorted({get_sector(ticker) for ticker in available_tickers})
     with st.form("risk_engine_setup"):
         st.markdown("### 1 · Define your portfolio")
+        selected_sectors = st.multiselect(
+            "Select Industry/Sector",
+            options=available_sectors,
+            key="ml_sector_filter",
+            help="Filter the company selector to one or more industries.",
+        )
+        filtered_tickers = [
+            ticker for ticker in available_tickers
+            if not selected_sectors or get_sector(ticker) in selected_sectors
+        ]
         selected_tickers = st.multiselect(
             "Company selection (choose at least 3)",
-            options=available_tickers,
-            default=available_tickers[:3],
+            options=filtered_tickers,
+            default=filtered_tickers[:3],
             help="The analysis uses only these assets for the custom basket and relationship map.",
         )
         setup_columns = st.columns(2)
@@ -267,6 +279,45 @@ def main() -> None:
     )
     st.plotly_chart(chart_layout(heatmap, "Selected Basket Correlation Matrix", 470), use_container_width=True, config={"displayModeBar": False})
     st.info(correlation_insight(correlation))
+
+    ticker_volatility = (
+        asset_returns[selected_tickers]
+        .rolling(30, min_periods=10)
+        .std()
+        .iloc[-1]
+        .mul(np.sqrt(252.0))
+    )
+    portfolio_volatility = float(ticker_volatility.mean())
+    if portfolio_volatility > 0 and np.isfinite(portfolio_volatility):
+        ticker_risk = predicted_volatility * ticker_volatility / portfolio_volatility
+        risk_breakdown = (
+            pd.DataFrame(
+                {
+                    "Sector": [get_sector(ticker) for ticker in ticker_risk.index],
+                    "Predicted Volatility": ticker_risk.to_numpy(),
+                }
+            )
+            .groupby("Sector", as_index=False)["Predicted Volatility"]
+            .mean()
+            .sort_values("Predicted Volatility", ascending=False)
+        )
+        risk_bar = go.Figure(
+            go.Bar(
+                x=risk_breakdown["Sector"],
+                y=risk_breakdown["Predicted Volatility"],
+                marker_color="#F87171",
+                hovertemplate="%{x}<br>Predicted volatility: %{y:.2%}<extra></extra>",
+            )
+        )
+        risk_bar.update_layout(
+            xaxis={"title": "Industry/Sector", "tickangle": -35},
+            yaxis={"title": "ML-scaled predicted volatility", "tickformat": ".0%"},
+        )
+        st.plotly_chart(
+            chart_layout(risk_bar, "Industry-wise Risk Breakdown", 390),
+            use_container_width=True,
+            config={"displayModeBar": False},
+        )
 
     st.markdown('<div class="section-heading"><span>03</span> Historical Portfolio X-Ray</div>', unsafe_allow_html=True)
     history = prices.loc[:effective_date]
