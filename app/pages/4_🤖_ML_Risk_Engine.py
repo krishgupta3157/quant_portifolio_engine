@@ -1,4 +1,4 @@
-"""Interactive machine-learning risk engine for a user-defined NIFTY basket."""
+"""Share-based machine-learning risk and portfolio rebalancing engine."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ if str(BASE_DIR) not in sys.path:
 
 from src.data_loader import LocalDataLoader
 from src.ml_risk_engine_test import engineer_features
+from src.optimization import PortfolioOptimizer
 from src.sector_mapping import get_sector
 from src.theme import apply_global_theme
 
@@ -39,7 +40,7 @@ st.markdown(
   font-weight: 700; letter-spacing: .16em; margin-bottom: .65rem; text-transform: uppercase; }
 .ml-title { color: #F8FAFC !important; font-size: clamp(2rem, 4vw, 3.4rem); font-weight: 800;
   letter-spacing: -.05em; line-height: 1.08; margin: 0; }
-.ml-subtitle { color: #94A3B8 !important; font-size: .9rem; line-height: 1.7; margin: .75rem 0 0; max-width: 820px; }
+.ml-subtitle { color: #94A3B8 !important; font-size: .9rem; line-height: 1.7; margin: .75rem 0 0; max-width: 860px; }
 .architecture-banner { background: #172033; border: 1px solid #334155; border-left: 3px solid #38BDF8;
   border-radius: 10px; color: #CBD5E1; font-family: 'JetBrains Mono', monospace; font-size: .76rem;
   line-height: 1.7; margin: 1rem 0 1.5rem; padding: 1rem 1.25rem; }
@@ -53,6 +54,9 @@ st.markdown(
   letter-spacing: .08em; line-height: 1.4; text-transform: uppercase; }
 .risk-kpi-value { color: #F8FAFC; font-size: 1.45rem; font-weight: 800; margin-top: .75rem; }
 .risk-kpi-note { color: #64748B; font-size: .7rem; margin-top: .35rem; }
+.sector-badge { background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.4); border-radius: 999px;
+  color: #7DD3FC; display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: .68rem;
+  letter-spacing: .06em; padding: .3rem .7rem; text-transform: uppercase; }
 div[data-testid="stPlotlyChart"] { border-color: #334155 !important; margin-bottom: .5rem; }
 section[data-testid="stSidebar"] { background: #172033 !important; border-right: 1px solid #334155; }
 </style>
@@ -121,17 +125,15 @@ def correlation_insight(correlation: pd.DataFrame) -> str:
     values = correlation.where(~np.eye(len(correlation), dtype=bool))
     pairs = values.stack().dropna()
     if pairs.empty:
-        return "Select at least two assets with usable return history to inspect contagion."
+        return "There are not enough distinct assets to calculate pairwise contagion."
     highest_pair = pairs.idxmax()
     lowest_pair = pairs.idxmin()
-    highest = float(pairs.max())
-    lowest = float(pairs.min())
     high_a, high_b = highest_pair
     low_a, low_b = lowest_pair
     return (
-        f"Highest linkage: **{high_a} / {high_b} ({highest:.2f})**. "
-        f"They may sell off together. Lowest linkage: **{low_a} / {low_b} "
-        f"({lowest:.2f})**; the lower-linked asset may provide better diversification."
+        f"Highest linkage: **{high_a} / {high_b} ({float(pairs.max()):.2f})**. "
+        f"Lowest linkage: **{low_a} / {low_b} ({float(pairs.min()):.2f})**; "
+        "lower-linked holdings may improve diversification."
     )
 
 
@@ -147,28 +149,47 @@ def portfolio_metrics(prices: pd.DataFrame) -> tuple[pd.Series, float, float, fl
     return cumulative, annualized_return, max_drawdown, sharpe
 
 
-def recommendation(style: str, volatility: float, threshold: float, horizon: str) -> None:
-    high_risk = volatility > threshold
-    if high_risk and style.startswith("Aggressive"):
+def infer_style(volatility: float) -> tuple[str, str]:
+    if volatility < 0.12:
+        return "Conservative (Capital Preservation)", "info"
+    if volatility <= 0.18:
+        return "Balanced", "success"
+    return "Aggressive (Max Alpha)", "warning"
+
+
+def render_recommendation(style: str, volatility: float, threshold: float, horizon: str) -> None:
+    if volatility > threshold:
         st.warning(
-            f"High crash risk detected over {horizon}. Aggressive growth exposure is "
-            "currently heavy; consider a minimum-volatility allocation."
+            f"Elevated crash risk detected over {horizon}. Your inferred "
+            f"{style} profile should use disciplined position sizing."
         )
-    elif high_risk:
-        st.warning(
-            f"Elevated risk detected over {horizon}. Keep position sizes defensive "
-            "and diversify away from highly correlated assets."
-        )
-    elif style.startswith("Conservative"):
-        st.success(f"Risk is within the model's normal range for {horizon}; defensive sizing fits your style.")
     else:
-        st.success(f"Risk is within the model's normal range for {horizon}; your selected style is supported.")
+        st.success(f"Projected risk is within the model's normal range for {horizon}.")
+
+
+def clean_ledger(data: pd.DataFrame, valid_tickers: list[str]) -> pd.DataFrame:
+    """Validate and aggregate the editable share ledger."""
+    if data.empty or not {"Ticker", "Shares Owned"}.issubset(data.columns):
+        return pd.DataFrame(columns=["Ticker", "Shares Owned"])
+    ledger = data.loc[:, ["Ticker", "Shares Owned"]].copy()
+    ledger["Ticker"] = ledger["Ticker"].astype("string").str.strip()
+    ledger["Shares Owned"] = pd.to_numeric(ledger["Shares Owned"], errors="coerce")
+    ledger = ledger.dropna(subset=["Ticker", "Shares Owned"])
+    ledger = ledger[ledger["Ticker"].isin(valid_tickers)]
+    ledger = ledger[ledger["Shares Owned"] > 0]
+    ledger["Shares Owned"] = np.floor(ledger["Shares Owned"]).astype(int)
+    return (
+        ledger.groupby("Ticker", as_index=False)["Shares Owned"]
+        .sum()
+        .sort_values("Ticker")
+        .reset_index(drop=True)
+    )
 
 
 def main() -> None:
     prices = load_live_prices()
-    if prices.empty or prices.shape[1] < 3:
-        st.error("The price matrix does not contain at least three usable assets.")
+    if prices.empty or prices.shape[1] < 2:
+        st.error("The price matrix does not contain enough usable assets.")
         return
 
     features, target = build_live_features(prices)
@@ -178,173 +199,185 @@ def main() -> None:
         return
     model = train_live_model(features.iloc[:split_at], target.iloc[:split_at])
     crisis_threshold = float(target.iloc[:split_at].quantile(0.75))
+    valid_tickers = sorted(prices.columns.tolist())
 
     st.markdown(
         """
         <div class="ml-shell">
-          <div class="ml-eyebrow">// Feature 04 · Forward-looking risk intelligence</div>
-          <h1 class="ml-title">ML Dynamic Risk Engine &amp;<br>Portfolio X-Ray</h1>
-          <p class="ml-subtitle">Build a custom basket, inspect contagion, evaluate its history, and project model-driven risk across four time horizons.</p>
+          <div class="ml-eyebrow">// Feature 04 · Share-based robo-advisor</div>
+          <h1 class="ml-title">ML Dynamic Risk Engine &amp;<br>Rebalancing Desk</h1>
+          <p class="ml-subtitle">Enter your live holdings, let the engine infer your risk profile, and receive exact optimizer-driven buy or sell quantities.</p>
         </div>
         <div class="architecture-banner">
-          <b>Model:</b> LightGBM &nbsp;|&nbsp; <b>Validation:</b> 70/30 chronological split
+          <b>Model:</b> LightGBM &nbsp;|&nbsp; <b>Optimizer:</b> Long-only MPT
           &nbsp;|&nbsp; <b>Universe:</b> 42 data-valid NIFTY assets
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    available_tickers = sorted(prices.columns.tolist())
-    available_sectors = sorted({get_sector(ticker) for ticker in available_tickers})
-    with st.form("risk_engine_setup"):
-        st.markdown("### 1 · Define your portfolio")
-        selected_sectors = st.multiselect(
-            "Select Industry/Sector",
-            options=available_sectors,
-            key="ml_sector_filter",
-            help="Filter the company selector to one or more industries.",
-        )
-        filtered_tickers = [
-            ticker for ticker in available_tickers
-            if not selected_sectors or get_sector(ticker) in selected_sectors
-        ]
-        selected_tickers = st.multiselect(
-            "Company selection (choose at least 3)",
-            options=filtered_tickers,
-            default=filtered_tickers[:3],
-            help="The analysis uses only these assets for the custom basket and relationship map.",
+    with st.form("share_based_risk_setup", clear_on_submit=False):
+        st.markdown("### 1 · Live Ledger")
+        st.caption("Add one row per holding. Duplicate tickers are consolidated automatically.")
+        initial_ledger = pd.DataFrame(columns=["Ticker", "Shares Owned"])
+        ledger_editor = st.data_editor(
+            initial_ledger,
+            num_rows="dynamic",
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "Ticker": st.column_config.SelectboxColumn(
+                    "Ticker",
+                    options=valid_tickers,
+                    required=True,
+                ),
+                "Shares Owned": st.column_config.NumberColumn(
+                    "Shares Owned",
+                    min_value=1,
+                    step=1,
+                    format="%d",
+                    required=True,
+                ),
+            },
+            key="share_ledger_editor_v2",
         )
         setup_columns = st.columns(2)
         with setup_columns[0]:
-            trade_style = st.radio(
-                "Trade style / risk tolerance",
-                ["Conservative (Defensive)", "Balanced (Market Neutral)", "Aggressive (Growth/Max Sharpe)"],
-                index=1,
-            )
-        with setup_columns[1]:
             base_date = st.date_input(
                 "Base date",
                 value=features.index.max().date(),
                 min_value=features.index.min().date(),
                 max_value=prices.index.max().date(),
-                help="Weekend dates use the latest available trading day on or before the selection.",
+                help="Historical prices are taken precisely on the nearest available trading date on or before this date.",
             )
-        submitted = st.form_submit_button("Run portfolio risk analysis", type="primary")
+        with setup_columns[1]:
+            goal = st.radio(
+                "Rebalancing goal",
+                [
+                    "Minimize Crash Loss (Defensive Rebalance)",
+                    "Maximize Risk-Adjusted Profit (Aggressive Rebalance)",
+                ],
+            )
+        submitted = st.form_submit_button("Analyze portfolio and calculate rebalance", type="primary")
 
     if submitted:
-        st.session_state["risk_engine_analysis_active"] = True
-    analysis_active = submitted or bool(
-        st.session_state.get("risk_engine_analysis_active", False)
-    )
-    if not analysis_active:
-        st.info("Choose at least three assets and submit the setup to run the interactive analysis.")
+        cleaned_ledger = clean_ledger(ledger_editor, valid_tickers)
+        if len(cleaned_ledger) < 3:
+            st.error("Please add at least 3 valid stocks with positive share counts before analyzing.")
+            st.stop()
+        st.session_state["ml_active_portfolio"] = cleaned_ledger
+        st.session_state["share_risk_analysis_active"] = True
+        st.session_state["share_risk_base_date"] = base_date
+        st.session_state["share_risk_goal"] = goal
+
+    if not st.session_state.get("share_risk_analysis_active", False):
+        st.info("Enter your holdings above and submit the ledger to activate the robo-advisor.")
         return
-    if len(selected_tickers) < 3:
-        st.error("Please select at least 3 stocks to form a portfolio.")
+
+    ledger = st.session_state.get(
+        "ml_active_portfolio",
+        pd.DataFrame(columns=["Ticker", "Shares Owned"]),
+    ).copy()
+    base_date = st.session_state.get("share_risk_base_date", base_date)
+    goal = st.session_state.get("share_risk_goal", goal)
+    if ledger.empty:
+        st.warning("Add at least one ticker with a positive whole-number share count.")
         return
 
     requested_date = pd.Timestamp(base_date)
+    eligible_prices = prices.loc[prices.index <= requested_date]
     eligible_features = features.loc[features.index <= requested_date]
-    if eligible_features.empty:
-        st.error("No engineered feature row is available on or before the selected base date.")
+    if eligible_prices.empty or eligible_features.empty:
+        st.error("No historical prices or engineered features are available on or before the selected date.")
         return
-    effective_date = eligible_features.index[-1]
-    selected_features = eligible_features.iloc[[-1]]
-    predicted_volatility = max(0.0, float(model.predict(selected_features)[0]))
-
-    selected_prices = prices.loc[:effective_date, selected_tickers].dropna(how="all")
-    if selected_prices.shape[1] < 3 or selected_prices.empty:
-        st.error("The selected assets do not have enough aligned historical prices.")
+    effective_date = eligible_prices.index[-1]
+    feature_date = eligible_features.index[-1]
+    selected_tickers = ledger["Ticker"].tolist()
+    selected_prices = eligible_prices.loc[:, selected_tickers].dropna(how="all")
+    selected_prices = selected_prices.ffill().dropna(how="any")
+    if selected_prices.empty:
+        st.error("The selected holdings do not have aligned historical price data.")
         return
-    asset_returns = selected_prices.pct_change().dropna(how="all")
-    correlation = asset_returns.corr().fillna(0.0)
 
-    st.markdown('<div class="section-heading"><span>02</span> Inter-Asset Relationship &amp; Contagion</div>', unsafe_allow_html=True)
-    st.markdown(
-        f'<div class="section-copy">Pairwise correlations for your {len(selected_tickers)}-asset basket through <b>{effective_date.date()}</b>.</div>',
-        unsafe_allow_html=True,
-    )
-    heatmap = go.Figure(
-        go.Heatmap(
-            z=correlation.to_numpy(),
-            x=correlation.columns,
-            y=correlation.index,
-            zmin=-1,
-            zmax=1,
-            colorscale=[[0, "#F87171"], [0.5, "#1E293B"], [1, "#38BDF8"]],
-            texttemplate="%{z:.2f}",
-            hovertemplate="%{y} ↔ %{x}<br>Correlation: %{z:.2f}<extra></extra>",
-            colorbar={"title": "Correlation"},
-        )
-    )
-    st.plotly_chart(chart_layout(heatmap, "Selected Basket Correlation Matrix", 470), use_container_width=True, config={"displayModeBar": False})
-    st.info(correlation_insight(correlation))
+    prices_at_date = prices.loc[effective_date, selected_tickers].astype(float)
+    shares = ledger.set_index("Ticker")["Shares Owned"].astype(float).reindex(selected_tickers)
+    holding_values = shares * prices_at_date
+    total_value = float(holding_values.sum())
+    if total_value <= 0 or not np.isfinite(total_value):
+        st.error("The calculated portfolio value is zero or invalid. Check the share counts.")
+        return
+    current_weights = holding_values / total_value
 
-    ticker_volatility = (
-        asset_returns[selected_tickers]
-        .rolling(30, min_periods=10)
-        .std()
-        .iloc[-1]
-        .mul(np.sqrt(252.0))
+    historical_returns = selected_prices.pct_change().dropna(how="all").fillna(0.0)
+    weighted_returns = historical_returns.mul(current_weights, axis=1).sum(axis=1)
+    historical_volatility = float(weighted_returns.std(ddof=1) * np.sqrt(252.0))
+    inferred_style, style_kind = infer_style(historical_volatility)
+    if style_kind == "info":
+        st.info(f"Inferred Style: {inferred_style} · Historical annualized volatility: {historical_volatility:.2%}")
+    elif style_kind == "success":
+        st.success(f"Inferred Style: {inferred_style} · Historical annualized volatility: {historical_volatility:.2%}")
+    else:
+        st.warning(f"Inferred Style: {inferred_style} · Historical annualized volatility: {historical_volatility:.2%}")
+
+    st.markdown('<div class="section-heading"><span>02</span> Portfolio Snapshot &amp; Sector Concentration</div>', unsafe_allow_html=True)
+    snapshot_columns = st.columns(4)
+    snapshot_values = [
+        ("Current Portfolio Value", f"₹{total_value:,.2f}", f"Prices on {effective_date.date()}"),
+        ("Historical Annualized Volatility", f"{historical_volatility:.2%}", "Weighted share-based basket"),
+        ("Holdings", f"{len(selected_tickers)}", "Distinct positions"),
+        ("Objective", "Defensive" if "Minimize" in goal else "Aggressive", "Optimizer target"),
+    ]
+    for column, (label, value, note) in zip(snapshot_columns, snapshot_values):
+        with column:
+            st.markdown(
+                f'<div class="risk-kpi"><div class="risk-kpi-label">{label}</div><div class="risk-kpi-value">{value}</div><div class="risk-kpi-note">{note}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    sector_concentration = (
+        pd.DataFrame(
+            {
+                "Sector": [get_sector(ticker) for ticker in holding_values.index],
+                "Value": holding_values.to_numpy(),
+            }
+        )
+        .groupby("Sector", as_index=False)["Value"]
+        .sum()
     )
-    portfolio_volatility = float(ticker_volatility.mean())
-    if portfolio_volatility > 0 and np.isfinite(portfolio_volatility):
-        ticker_risk = predicted_volatility * ticker_volatility / portfolio_volatility
-        risk_breakdown = (
-            pd.DataFrame(
-                {
-                    "Sector": [get_sector(ticker) for ticker in ticker_risk.index],
-                    "Predicted Volatility": ticker_risk.to_numpy(),
-                }
-            )
-            .groupby("Sector", as_index=False)["Predicted Volatility"]
-            .mean()
-            .sort_values("Predicted Volatility", ascending=False)
-        )
-        risk_bar = go.Figure(
-            go.Bar(
-                x=risk_breakdown["Sector"],
-                y=risk_breakdown["Predicted Volatility"],
-                marker_color="#F87171",
-                hovertemplate="%{x}<br>Predicted volatility: %{y:.2%}<extra></extra>",
+    sector_concentration["Weight"] = sector_concentration["Value"] / total_value
+    concentration_columns = st.columns([1.1, 1])
+    with concentration_columns[0]:
+        sector_fig = go.Figure(
+            go.Pie(
+                labels=sector_concentration["Sector"],
+                values=sector_concentration["Value"],
+                hole=0.62,
+                textinfo="label+percent",
+                marker={"line": {"color": "#1E293B", "width": 2}},
+                hovertemplate="<b>%{label}</b><br>Value: ₹%{value:,.2f}<br>Weight: %{percent}<extra></extra>",
             )
         )
-        risk_bar.update_layout(
-            xaxis={"title": "Industry/Sector", "tickangle": -35},
-            yaxis={"title": "ML-scaled predicted volatility", "tickformat": ".0%"},
+        sector_fig.add_annotation(
+            text=f"<b>{len(sector_concentration)}</b><br><span style='font-size:9px;color:#94A3B8'>SECTORS</span>",
+            x=0.5,
+            y=0.5,
+            showarrow=False,
+            font={"family": "JetBrains Mono", "size": 18, "color": "#F8FAFC"},
         )
         st.plotly_chart(
-            chart_layout(risk_bar, "Industry-wise Risk Breakdown", 390),
+            chart_layout(sector_fig, "Current Sector Concentration", 380),
             use_container_width=True,
             config={"displayModeBar": False},
         )
+    with concentration_columns[1]:
+        display_concentration = sector_concentration.copy()
+        display_concentration["Weight"] = display_concentration["Weight"].map(lambda value: f"{value:.2%}")
+        display_concentration["Value"] = display_concentration["Value"].map(lambda value: f"₹{value:,.2f}")
+        st.dataframe(display_concentration, hide_index=True, use_container_width=True)
 
-    st.markdown('<div class="section-heading"><span>03</span> Historical Portfolio X-Ray</div>', unsafe_allow_html=True)
-    history = prices.loc[:effective_date]
-    selected_cumulative, annualized_return, max_drawdown, sharpe = portfolio_metrics(history[selected_tickers])
-    benchmark_cumulative, _, _, _ = portfolio_metrics(history)
-    performance = pd.DataFrame({"Custom equal-weight basket": selected_cumulative, "NIFTY 42 equal-weight benchmark": benchmark_cumulative}).dropna()
-    area = go.Figure()
-    for column, color in zip(performance.columns, ["#38BDF8", "#34D399"]):
-        area.add_trace(go.Scatter(x=performance.index, y=performance[column], mode="lines", name=column, line={"color": color, "width": 2}, fill="tonexty" if column == performance.columns[0] else None))
-    area.update_yaxes(title="Growth of ₹1", tickformat=".2f", gridcolor="#334155")
-    area.update_xaxes(showgrid=False)
-    st.plotly_chart(chart_layout(area, "Cumulative Returns: Custom Basket vs NIFTY 42", 430), use_container_width=True, config={"displayModeBar": False})
-
-    metric_columns = st.columns(3)
-    for column, label, value, note in [
-        (metric_columns[0], "Historical Annualized Return", f"{annualized_return:.2%}", "Equal-weight custom basket"),
-        (metric_columns[1], "Maximum Drawdown", f"{max_drawdown:.2%}", "Peak-to-trough through base date"),
-        (metric_columns[2], "Sharpe Ratio", f"{sharpe:.2f}", "252-day annualization"),
-    ]:
-        with column:
-            st.markdown(f'<div class="risk-kpi"><div class="risk-kpi-label">{label}</div><div class="risk-kpi-value">{value}</div><div class="risk-kpi-note">{note}</div></div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="section-heading"><span>04</span> ML Multi-Horizon Predictions</div>', unsafe_allow_html=True)
-    st.markdown(
-        f'<div class="section-copy">Base-date LightGBM forecast: <b>{effective_date.date()}</b>. Longer horizons use the square-root-of-time rule.</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="section-heading"><span>03</span> ML Multi-Horizon Risk</div>', unsafe_allow_html=True)
+    selected_features = eligible_features.iloc[[-1]]
+    base_predicted_volatility = max(0.0, float(model.predict(selected_features)[0]))
     horizon_options = {
         "1 month": 21,
         "3 months": 63,
@@ -360,41 +393,199 @@ def main() -> None:
         "Select prediction horizon",
         options=list(horizon_options),
         index=2,
-        help="Volatility is projected from the model's 30-trading-day forecast using the square-root-of-time rule.",
+        key="share_risk_horizon",
+        help="Uses the 30-trading-day LightGBM forecast and square-root-of-time scaling.",
     )
     if horizon_choice == "Custom":
-        custom_days = st.number_input(
-            "Custom horizon (trading days)",
-            min_value=1,
-            max_value=2520,
-            value=378,
-            step=1,
-            help="Enter the horizon in trading days. 252 trading days is approximately one year.",
+        horizon_days = int(
+            st.number_input(
+                "Custom horizon (trading days)",
+                min_value=1,
+                max_value=2520,
+                value=378,
+                step=1,
+                key="share_risk_custom_days",
+            )
         )
-        horizon_days = int(custom_days)
         horizon_label = f"Custom · {horizon_days:,} trading days"
     else:
-        horizon_days = horizon_options[horizon_choice]
-        assert horizon_days is not None
+        horizon_days = int(horizon_options[horizon_choice])
         horizon_label = horizon_choice
-
-    horizon_volatility = predicted_volatility * np.sqrt(horizon_days / 30.0)
-    horizon_card, horizon_note = st.columns([1.25, 1], gap="large")
-    with horizon_card:
+    horizon_volatility = base_predicted_volatility * np.sqrt(horizon_days / 30.0)
+    risk_columns = st.columns(2)
+    with risk_columns[0]:
         st.markdown(
-            f"""
-            <div class="risk-kpi">
-              <div class="risk-kpi-label">Predicted Volatility · {horizon_label}</div>
-              <div class="risk-kpi-value">{horizon_volatility:.2%}</div>
-              <div class="risk-kpi-note">Scaled from the 30-day LightGBM forecast across {horizon_days:,} trading days</div>
-            </div>
-            """,
+            f'<div class="risk-kpi"><div class="risk-kpi-label">Predicted Volatility · {horizon_label}</div><div class="risk-kpi-value">{horizon_volatility:.2%}</div><div class="risk-kpi-note">Base 30D forecast: {base_predicted_volatility:.2%}</div></div>',
             unsafe_allow_html=True,
         )
-    with horizon_note:
-        recommendation(trade_style, horizon_volatility, crisis_threshold, horizon_label)
+    with risk_columns[1]:
+        render_recommendation(inferred_style, horizon_volatility, crisis_threshold, horizon_label)
 
-    st.caption("Features are evaluated only through the selected base date; no future observations are used in the prediction row.")
+    st.markdown('<div class="section-heading"><span>04</span> Relationship Map</div>', unsafe_allow_html=True)
+    asset_returns = selected_prices.pct_change().dropna(how="all")
+    correlation = asset_returns.corr().fillna(0.0)
+    heatmap = go.Figure(
+        go.Heatmap(
+            z=correlation.to_numpy(),
+            x=correlation.columns,
+            y=correlation.index,
+            zmin=-1,
+            zmax=1,
+            colorscale=[[0, "#F87171"], [0.5, "#1E293B"], [1, "#38BDF8"]],
+            texttemplate="%{z:.2f}",
+            hovertemplate="%{y} ↔ %{x}<br>Correlation: %{z:.2f}<extra></extra>",
+            colorbar={"title": "Correlation"},
+        )
+    )
+    st.plotly_chart(
+        chart_layout(heatmap, "Current Holdings Correlation Matrix", 440),
+        use_container_width=True,
+        config={"displayModeBar": False},
+    )
+    st.info(correlation_insight(correlation))
+
+    st.markdown('<div class="section-heading"><span>05</span> Historical Portfolio X-Ray</div>', unsafe_allow_html=True)
+    history = prices.loc[:effective_date]
+    selected_cumulative, annualized_return, max_drawdown, sharpe = portfolio_metrics(history[selected_tickers])
+    benchmark_cumulative, _, _, _ = portfolio_metrics(history)
+    performance = pd.DataFrame(
+        {
+            "Current share-weighted basket": selected_cumulative,
+            "NIFTY 42 equal-weight benchmark": benchmark_cumulative,
+        }
+    ).dropna()
+    area = go.Figure()
+    for column, color in zip(performance.columns, ["#38BDF8", "#34D399"]):
+        area.add_trace(
+            go.Scatter(
+                x=performance.index,
+                y=performance[column],
+                mode="lines",
+                name=column,
+                line={"color": color, "width": 2},
+            )
+        )
+    area.update_yaxes(title="Growth of ₹1", tickformat=".2f", gridcolor="#334155")
+    area.update_xaxes(showgrid=False)
+    st.plotly_chart(
+        chart_layout(area, "Cumulative Returns Through Base Date", 420),
+        use_container_width=True,
+        config={"displayModeBar": False},
+    )
+    metric_columns = st.columns(3)
+    for column, label, value, note in [
+        (metric_columns[0], "Historical Annualized Return", f"{annualized_return:.2%}", "Share-weighted basket"),
+        (metric_columns[1], "Maximum Drawdown", f"{max_drawdown:.2%}", "Peak-to-trough"),
+        (metric_columns[2], "Sharpe Ratio", f"{sharpe:.2f}", "252-day annualization"),
+    ]:
+        with column:
+            st.markdown(
+                f'<div class="risk-kpi"><div class="risk-kpi-label">{label}</div><div class="risk-kpi-value">{value}</div><div class="risk-kpi-note">{note}</div></div>',
+                unsafe_allow_html=True,
+            )
+
+    st.markdown('<div class="section-heading"><span>06</span> Actionable Rebalancing Recommendations</div>', unsafe_allow_html=True)
+    optimizer = PortfolioOptimizer(selected_prices)
+    try:
+        optimal_weights = (
+            optimizer.optimize_min_volatility()
+            if "Minimize" in goal
+            else optimizer.optimize_max_sharpe()
+        )
+    except (ValueError, RuntimeError, TypeError) as exc:
+        st.error(f"The optimizer could not produce a valid allocation for these holdings: {exc}")
+        return
+
+    optimal_weights = pd.Series(optimal_weights, dtype=float).reindex(selected_tickers, fill_value=0.0)
+    optimal_weights = optimal_weights.clip(lower=0.0)
+    weight_total = float(optimal_weights.sum())
+    if weight_total <= 0:
+        st.error("The optimizer returned no positive weights for the selected holdings.")
+        return
+    optimal_weights = optimal_weights / weight_total
+    target_shares = np.rint(optimal_weights * total_value / prices_at_date).astype(int)
+    share_delta = target_shares - shares.astype(int)
+    delta_value = share_delta * prices_at_date
+    recommendations = pd.DataFrame(
+        {
+            "Ticker": selected_tickers,
+            "Sector": [get_sector(ticker) for ticker in selected_tickers],
+            "Current Shares": shares.astype(int).to_numpy(),
+            "Current Weight": current_weights.to_numpy(),
+            "Target Weight": optimal_weights.to_numpy(),
+            "Target Shares": target_shares.to_numpy(),
+            "Share Difference": share_delta.to_numpy(),
+            "Trade Value": delta_value.to_numpy(),
+        }
+    )
+    recommendations["Action"] = np.where(
+        recommendations["Share Difference"] > 0,
+        "BUY",
+        np.where(recommendations["Share Difference"] < 0, "SELL", "HOLD"),
+    )
+    recommendations["Instruction"] = recommendations.apply(
+        lambda row: (
+            f"Buy {int(row['Share Difference']):,} shares of {row['Ticker']}"
+            if row["Share Difference"] > 0
+            else f"Sell {abs(int(row['Share Difference'])):,} shares of {row['Ticker']}"
+            if row["Share Difference"] < 0
+            else f"Hold {row['Ticker']}"
+        ),
+        axis=1,
+    )
+    visible_recommendations = recommendations[recommendations["Action"] != "HOLD"].copy()
+    if visible_recommendations.empty:
+        st.success("Your current share counts already match the selected optimizer target after whole-share rounding.")
+    else:
+        st.dataframe(
+            visible_recommendations[
+                ["Instruction", "Sector", "Current Weight", "Target Weight", "Trade Value"]
+            ].style.format(
+                {
+                    "Current Weight": "{:.2%}",
+                    "Target Weight": "{:.2%}",
+                    "Trade Value": "₹{:,.2f}",
+                }
+            ),
+            hide_index=True,
+            use_container_width=True,
+        )
+
+    risk_by_ticker = asset_returns.std(ddof=1).mul(np.sqrt(252.0))
+    weighted_asset_risk = float(risk_by_ticker.mul(current_weights).sum())
+    if weighted_asset_risk > 0 and np.isfinite(weighted_asset_risk):
+        ml_scaled_risk = base_predicted_volatility * risk_by_ticker / weighted_asset_risk
+        risk_breakdown = (
+            pd.DataFrame(
+                {
+                    "Sector": [get_sector(ticker) for ticker in selected_tickers],
+                    "Predicted Volatility": ml_scaled_risk.reindex(selected_tickers).to_numpy(),
+                }
+            )
+            .groupby("Sector", as_index=False)["Predicted Volatility"]
+            .mean()
+            .sort_values("Predicted Volatility", ascending=False)
+        )
+        risk_bar = go.Figure(
+            go.Bar(
+                x=risk_breakdown["Sector"],
+                y=risk_breakdown["Predicted Volatility"],
+                marker_color="#F87171",
+                hovertemplate="%{x}<br>ML-scaled volatility: %{y:.2%}<extra></extra>",
+            )
+        )
+        risk_bar.update_xaxes(tickangle=-35)
+        risk_bar.update_yaxes(title="ML-scaled 30D volatility", tickformat=".0%")
+        st.plotly_chart(
+            chart_layout(risk_bar, "Industry-wise Risk Breakdown", 390),
+            use_container_width=True,
+            config={"displayModeBar": False},
+        )
+
+    st.caption(
+        f"Prices and share deltas use the nearest available trading date {effective_date.date()}; "
+        f"the ML feature row uses {feature_date.date()} to avoid future leakage."
+    )
 
 
 main()
