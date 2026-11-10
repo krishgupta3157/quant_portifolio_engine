@@ -1,4 +1,4 @@
-"""Historical portfolio simulator page.
+﻿"""Historical portfolio simulator page.
 
 This page is intentionally isolated from ``app/app.py``.  It uses the same
 local portfolio price matrix and lets a user build a dated trade ledger,
@@ -44,20 +44,21 @@ apply_global_theme()
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-app: #0F172A;
-  --bg-card: #1E293B;
-  --bg-card-sub: #172033;
-  --border: #334155;
-  --blue: #38BDF8;
-  --blue-dark: #0EA5E9;
-  --text: #F8FAFC;
-  --muted: #94A3B8;
-  --green: #10B981;
-  --red: #F43F5E;
-  --amber: #F59E0B;
+  --bg-app: #E8E3D7;
+  --bg-card: #DCD5C6;
+  --bg-card-sub: #D4CCBC;
+  --border: #C8C0AE;
+  --olive: #222B1C;
+  --olive-mid: #3B4536;
+  --text: #222B1C;
+  --muted: #8B8578;
+  --cream: #F5F0E8;
+  --positive: #5C6B52;
+  --negative: #8B4B4B;
+  --amber: #8B6B2B;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -65,7 +66,7 @@ st.markdown(
 .stApp {
   background: var(--bg-app) !important;
   color: var(--text) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 #MainMenu, footer, div[data-testid="stToolbar"],
@@ -74,7 +75,9 @@ div[data-testid="stDecoration"], div[data-testid="stStatusWidget"] {
 }
 
 header[data-testid="stHeader"] {
-  background: transparent !important;
+  background: rgba(232, 227, 215, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 section.main > div.block-container {
@@ -93,60 +96,58 @@ section.main > div.block-container {
 }
 
 .sim-eyebrow {
-  color: var(--blue);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
+  color: var(--olive-mid);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   margin-bottom: 0.55rem;
 }
 
 .sim-title {
-  background: linear-gradient(115deg, #FFFFFF 0%, var(--blue) 65%, var(--blue-dark) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-size: 2rem;
-  font-weight: 900;
-  letter-spacing: -0.035em;
-  line-height: 1.15;
+  font-family: 'Playfair Display', Georgia, serif;
+  color: var(--text);
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
   margin: 0 0 0.45rem;
 }
 
 .sim-subtitle {
   color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
-  line-height: 1.6;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.65;
   margin: 0;
+  max-width: 700px;
 }
 
 .section-title {
-  color: #FFFFFF;
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  color: var(--text);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 1.7rem 0 0.8rem;
-  text-transform: uppercase;
 }
 
 .section-title::before {
-  background: var(--blue);
+  background: var(--olive-mid);
   border-radius: 2px;
   content: "";
   display: inline-block;
   height: 17px;
   margin-right: 0.55rem;
   vertical-align: -3px;
-  width: 4px;
+  width: 3px;
 }
 
 .kpi-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
@@ -154,22 +155,29 @@ section.main > div.block-container {
   min-width: 0;
   overflow: visible;
   overflow-wrap: anywhere;
-  padding: 1.5rem;
+  padding: 1.4rem;
+  transition: border-color .2s ease, transform .2s ease;
+}
+
+.kpi-card:hover {
+  border-color: var(--olive);
+  transform: translateY(-2px);
 }
 
 .kpi-label {
   color: var(--muted);
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: 0.62rem;
+  font-weight: 700;
   letter-spacing: 0.1em;
-  margin-bottom: 0.7rem;
+  margin-bottom: 0.6rem;
   text-transform: uppercase;
 }
 
 .kpi-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(0.9rem, 1.45vw, 1.35rem);
-  font-weight: 800;
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(0.9rem, 1.45vw, 1.3rem);
+  font-weight: 700;
+  color: var(--text);
   line-height: 1.25;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -178,8 +186,8 @@ section.main > div.block-container {
 
 .kpi-note {
   color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.65rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.63rem;
   margin-top: 0.35rem;
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -198,23 +206,31 @@ section.main > div.block-container {
 }
 
 [data-testid="stMetricValue"] {
+  font-family: 'Playfair Display', serif !important;
   font-size: clamp(0.95rem, 1.8vw, 1.5rem) !important;
+  color: var(--text) !important;
   max-width: 100% !important;
   overflow-wrap: anywhere !important;
   white-space: normal !important;
   word-break: break-word !important;
 }
 
-.tone-blue { color: var(--blue); }
-.tone-green { color: var(--green); }
-.tone-red { color: var(--red); }
+[data-testid="stMetricLabel"] {
+  color: var(--muted) !important;
+  font-size: 0.65rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.tone-blue { color: var(--olive); }
+.tone-green { color: var(--positive); }
+.tone-red { color: var(--negative); }
 .tone-amber { color: var(--amber); }
 
 .form-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
   padding: 1.1rem 1.2rem 0.25rem;
 }
 
@@ -224,7 +240,7 @@ div[data-testid="stDateInput"] input,
 div[data-testid="stNumberInput"] input {
   background: var(--bg-card-sub) !important;
   border-color: var(--border) !important;
-  color: #FFFFFF !important;
+  color: var(--text) !important;
 }
 
 div[data-testid="stForm"] {
@@ -234,31 +250,47 @@ div[data-testid="stForm"] {
 
 [data-testid="stButton"] button,
 [data-testid="stFormSubmitButton"] button {
-  background: var(--blue-dark) !important;
-  border: 1px solid var(--blue) !important;
-  border-radius: 8px !important;
+  background: #222B1C !important;
+  border: 1px solid #222B1C !important;
+  border-radius: 24px !important;
   color: #FFFFFF !important;
-  font-weight: 800 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+}
+
+[data-testid="stButton"] button *,
+[data-testid="stFormSubmitButton"] button * {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
 }
 
 [data-testid="stButton"] button:hover,
 [data-testid="stFormSubmitButton"] button:hover {
-  background: #0369A1 !important;
-  box-shadow: 0 5px 16px rgba(2, 132, 199, 0.3) !important;
+  background: #3B4536 !important;
+  border-color: #3B4536 !important;
+  box-shadow: 0 4px 14px rgba(34, 43, 28, .22) !important;
+  color: #FFFFFF !important;
   transform: translateY(-1px);
+}
+
+[data-testid="stButton"] button:hover *,
+[data-testid="stFormSubmitButton"] button:hover * {
+  color: #FFFFFF !important;
 }
 
 [data-testid="stPlotlyChart"] {
   background: var(--bg-card) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+  border-radius: 16px !important;
   padding: 0.5rem !important;
 }
 
 div[data-testid="stDataFrame"] {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -267,8 +299,8 @@ div[data-testid="stDataFrame"] {
   border: 1px dashed var(--border);
   border-radius: 12px;
   color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
   padding: 1.6rem;
   text-align: center;
 }
@@ -483,22 +515,22 @@ def render_kpi(label: str, value: str, note: str, tone: str) -> None:
 
 def chart_layout(height: int) -> dict[str, Any]:
     return {
-        "template": "plotly_dark",
+        "template": "plotly_white",
         "height": height,
         "margin": {"l": 12, "r": 18, "t": 22, "b": 12},
         "paper_bgcolor": "rgba(0,0,0,0)",
         "plot_bgcolor": "rgba(0,0,0,0)",
-        "font": {"family": "Inter, sans-serif", "color": "#F8FAFC"},
-        "legend": {"font": {"color": "#F8FAFC"}},
+        "font": {"family": "Inter, sans-serif", "color": "#3B4536"},
+        "legend": {"bgcolor": "rgba(220,213,198,0.9)", "bordercolor": "rgba(168,160,149,.35)", "borderwidth": 1, "font": {"color": "#3B4536"}},
         "xaxis": {
-            "gridcolor": "#334155",
-            "linecolor": "#475569",
-            "tickfont": {"color": "#94A3B8"},
+            "gridcolor": "#C8C0AE",
+            "linecolor": "#A8A095",
+            "tickfont": {"color": "#8B8578"},
         },
         "yaxis": {
-            "gridcolor": "#334155",
-            "linecolor": "#475569",
-            "tickfont": {"color": "#94A3B8"},
+            "gridcolor": "#C8C0AE",
+            "linecolor": "#A8A095",
+            "tickfont": {"color": "#8B8578"},
             "tickprefix": "₹",
             "tickformat": ",.0f",
         },
@@ -744,9 +776,9 @@ else:
             y=chart_values.to_numpy(dtype=float),
             mode="lines",
             name="Portfolio value",
-            line={"color": "#38BDF8", "width": 2.5},
+            line={"color": "#3B4536", "width": 2.5},
             fill="tozeroy",
-            fillcolor="rgba(56, 189, 248, 0.14)",
+            fillcolor="rgba(59, 69, 54, 0.1)",
             hovertemplate="%{x|%d %b %Y}<br>Value: ₹%{y:,.2f}<extra></extra>",
         )
     )
@@ -765,9 +797,9 @@ else:
                 name="Buy trades",
                 marker={
                     "symbol": "triangle-up",
-                    "color": "#10B981",
+                    "color": "#5C6B52",
                     "size": 12,
-                    "line": {"color": "#FFFFFF", "width": 1},
+                    "line": {"color": "#F5F0E8", "width": 1},
                 },
                 customdata=buy_trades[["Ticker", "Shares"]].to_numpy(),
                 hovertemplate=(
@@ -788,9 +820,9 @@ else:
                 name="Sell trades",
                 marker={
                     "symbol": "triangle-down",
-                    "color": "#E11D48",
+                    "color": "#8B4B4B",
                     "size": 12,
-                    "line": {"color": "#FFFFFF", "width": 1},
+                    "line": {"color": "#F5F0E8", "width": 1},
                 },
                 customdata=sell_trades[["Ticker", "Shares"]].to_numpy(),
                 hovertemplate=(
@@ -812,7 +844,7 @@ else:
                 f"Simulation window: {portfolio_value.index.min():%d %b %Y}"
                 f" → {portfolio_value.index.max():%d %b %Y}"
             ),
-            "font": {"size": 13, "color": "#CBD5E1"},
+            "font": {"size": 13, "color": "#8B8578"},
             "x": 0.02,
         },
     )
@@ -841,17 +873,17 @@ with holdings_col:
                 values=current_holdings.values,
                 hole=0.62,
                 textinfo="label+percent",
-                textfont={"color": "#F8FAFC", "size": 11},
+                textfont={"color": "#3B4536", "size": 11},
                 marker={
                     "colors": [
-                        "#79E8A1",
-                        "#55D987",
-                        "#B0F2C0",
-                        "#4DBB79",
-                        "#F4C66B",
-                        "#8BD8A6",
-                        "#FF7185",
-                        "#B7EAC5",
+                        "#5C6B52",
+                        "#7A8F6E",
+                        "#3B4536",
+                        "#8B9E7E",
+                        "#B5A88E",
+                        "#A8A095",
+                        "#8B4B4B",
+                        "#D4CCBC",
                     ]
                 },
                 hovertemplate="%{label}<br>Value: ₹%{value:,.2f}<extra></extra>",
@@ -883,7 +915,7 @@ with holdings_col:
                 values=sector_holdings["Value"],
                 hole=0.62,
                 textinfo="label+percent",
-                textfont={"color": "#F8FAFC", "size": 10},
+                textfont={"color": "#3B4536", "size": 10},
                 hovertemplate="%{label}<br>Sector value: ₹%{value:,.2f}<extra></extra>",
             )
         )
@@ -942,7 +974,7 @@ else:
         key="inspected_ticker",
     )
     st.markdown(
-        f'<span style="display:inline-block;background:rgba(56,189,248,.12);border:1px solid rgba(56,189,248,.4);border-radius:999px;color:#7DD3FC;font-family:JetBrains Mono,monospace;font-size:.7rem;letter-spacing:.06em;padding:.3rem .7rem;text-transform:uppercase;">Sector · {get_sector(inspected_ticker)}</span>',
+        f'<span style="display:inline-block;background:rgba(59,69,54,.1);border:1px solid rgba(59,69,54,.25);border-radius:999px;color:#5C6B52;font-family:Inter,sans-serif;font-size:.7rem;letter-spacing:.06em;padding:.3rem .7rem;text-transform:uppercase;">Sector · {get_sector(inspected_ticker)}</span>',
         unsafe_allow_html=True,
     )
     inspected_shares, invested_capital = asset_cost_basis(

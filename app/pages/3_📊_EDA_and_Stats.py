@@ -1,4 +1,4 @@
-"""Exploratory data analysis and statistical diagnostics for the asset universe."""
+﻿"""Exploratory data analysis and statistical diagnostics for the asset universe."""
 
 from __future__ import annotations
 
@@ -31,31 +31,33 @@ apply_global_theme()
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg: #0F172A;
-  --panel: #1E293B;
-  --panel-soft: #172033;
-  --border: #334155;
-  --text: #F8FAFC;
-  --muted: #94A3B8;
-  --cyan: #38BDF8;
-  --purple: #A78BFA;
-  --green: #10B981;
-  --amber: #F59E0B;
-  --red: #F43F5E;
+  --bg-app: #E8E3D7;
+  --bg-card: #DCD5C6;
+  --bg-card-sub: #D4CCBC;
+  --border: #C8C0AE;
+  --olive: #222B1C;
+  --olive-mid: #3B4536;
+  --text: #222B1C;
+  --muted: #8B8578;
+  --cream: #F5F0E8;
+  --positive: #5C6B52;
+  --negative: #8B4B4B;
+  --amber: #8B6B2B;
+  --cyan: #5C6B52;
+  --purple: #3B4536;
+  --green: #7A8F6E;
+  --red: #8B4B4B;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
 .stApp {
-  background:
-    radial-gradient(circle at 8% 0%, rgba(56, 189, 248, .08), transparent 30%),
-    radial-gradient(circle at 92% 10%, rgba(167, 139, 250, .08), transparent 28%),
-    var(--bg) !important;
+  background: var(--bg-app) !important;
   color: var(--text) !important;
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
 }
 
 #MainMenu, footer, div[data-testid="stToolbar"],
@@ -63,7 +65,11 @@ div[data-testid="stDecoration"], div[data-testid="stStatusWidget"] {
   display: none !important;
 }
 
-header[data-testid="stHeader"] { background: transparent !important; }
+header[data-testid="stHeader"] {
+  background: rgba(232, 227, 215, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
 
 section.main > div.block-container {
   max-width: 100% !important;
@@ -77,54 +83,52 @@ section.main > div.block-container {
 }
 
 .eda-eyebrow {
-  color: var(--cyan);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .7rem;
+  color: var(--olive-mid);
+  font-family: 'Inter', sans-serif;
+  font-size: .68rem;
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: .18em;
   margin-bottom: .55rem;
   text-transform: uppercase;
 }
 
 .eda-title {
-  background: linear-gradient(115deg, #FFFFFF 0%, var(--cyan) 62%, var(--purple) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-size: clamp(2rem, 4vw, 3.3rem);
-  font-weight: 900;
-  letter-spacing: -.05em;
+  color: var(--text);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
   line-height: 1.1;
   margin: 0 0 .45rem;
 }
 
 .eda-subtitle {
   color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .75rem;
-  line-height: 1.7;
+  font-family: 'Inter', sans-serif;
+  font-size: .82rem;
+  line-height: 1.65;
   margin: 0;
   max-width: 850px;
 }
 
 .section-title {
-  color: #FFFFFF;
-  font-size: .85rem;
-  font-weight: 800;
-  letter-spacing: .12em;
+  color: var(--text);
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 1.7rem 0 .8rem;
-  text-transform: uppercase;
 }
 
 .section-title::before {
-  background: var(--cyan);
+  background: var(--olive-mid);
   border-radius: 2px;
   content: "";
   display: inline-block;
   height: 17px;
-  margin-right: .55rem;
+  margin-right: 0.55rem;
   vertical-align: -3px;
-  width: 4px;
+  width: 3px;
 }
 
 .section-copy {
@@ -135,68 +139,97 @@ section.main > div.block-container {
 }
 
 .kpi-card {
-  background: linear-gradient(145deg, rgba(37, 40, 48, .98), rgba(26, 28, 35, .98));
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+  border-radius: 16px;
   min-height: 118px;
   padding: 1.05rem 1.15rem;
-  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+  transition: border-color .2s ease, transform .2s ease;
 }
 
 .kpi-card:hover {
-  border-color: var(--cyan);
-  box-shadow: 0 8px 26px rgba(0, 0, 0, .42), 0 0 20px rgba(56, 189, 248, .1);
-  transform: translateY(-3px);
+  border-color: var(--olive);
+  transform: translateY(-2px);
 }
 
 .kpi-label {
   color: var(--muted);
   font-size: .62rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
 }
 
 .kpi-value {
-  color: #FFFFFF;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(1rem, 1.55vw, 1.35rem);
-  font-weight: 800;
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.1rem, 1.55vw, 1.4rem);
+  font-weight: 700;
   margin-top: .55rem;
 }
 
 .kpi-note {
   color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: .62rem;
+  font-family: 'Inter', sans-serif;
+  font-size: .65rem;
   margin-top: .25rem;
 }
 
 div[data-baseweb="select"] > div,
 div[data-baseweb="input"] > div {
-  background: var(--panel-soft) !important;
+  background: var(--bg-card-sub) !important;
   border-color: var(--border) !important;
-  color: #FFFFFF !important;
+  color: var(--text) !important;
 }
 
 [data-testid="stPlotlyChart"] {
-  background: var(--panel) !important;
+  background: var(--bg-card) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, .35) !important;
-  padding: .35rem !important;
+  border-radius: 16px !important;
+  padding: .5rem !important;
 }
 
 .insight {
-  background: rgba(56, 189, 248, .07);
-  border-left: 3px solid var(--cyan);
+  background: rgba(59, 69, 54, .07);
+  border-left: 3px solid var(--olive-mid);
   border-radius: 0 8px 8px 0;
   color: var(--muted);
   font-size: .78rem;
   line-height: 1.65;
   margin: .7rem 0 1rem;
   padding: .7rem .9rem;
+}
+
+[data-testid="stButton"] button,
+[data-testid="stFormSubmitButton"] button {
+  background: #222B1C !important;
+  border: 1px solid #222B1C !important;
+  border-radius: 24px !important;
+  color: #FFFFFF !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+}
+
+[data-testid="stButton"] button *,
+[data-testid="stFormSubmitButton"] button * {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+[data-testid="stButton"] button:hover,
+[data-testid="stFormSubmitButton"] button:hover {
+  background: #3B4536 !important;
+  border-color: #3B4536 !important;
+  box-shadow: 0 4px 14px rgba(34, 43, 28, .22) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px);
+}
+
+[data-testid="stButton"] button:hover *,
+[data-testid="stFormSubmitButton"] button:hover * {
+  color: #FFFFFF !important;
 }
 </style>
 """,
@@ -223,25 +256,31 @@ def load_market_data() -> pd.DataFrame:
 
 
 def plot_layout(title: str, height: int = 480) -> dict[str, object]:
-    """Return a consistent dark Plotly layout for every chart on this page."""
+    """Return a consistent earthy Plotly layout for every chart on this page."""
     return {
-        "template": "plotly_dark",
-        "title": {"text": title, "x": 0.02, "xanchor": "left"},
+        "template": "plotly_white",
+        "title": {"text": title, "x": 0.02, "xanchor": "left", "font": {"family": "Inter, sans-serif", "size": 13, "color": "#8B8578"}},
         "height": height,
         "paper_bgcolor": "rgba(0,0,0,0)",
         "plot_bgcolor": "rgba(0,0,0,0)",
-        "font": {"family": "Inter, sans-serif", "color": "#F8FAFC"},
+        "font": {"family": "Inter, sans-serif", "color": "#3B4536"},
         "margin": {"l": 55, "r": 24, "t": 62, "b": 52},
-        "hoverlabel": {"bgcolor": "#1E293B", "font": {"color": "#F8FAFC"}},
+        "hoverlabel": {"bgcolor": "#DCD5C6", "font": {"color": "#3B4536"}},
+        "legend": {
+            "bgcolor": "rgba(220,213,198,0.9)",
+            "bordercolor": "rgba(168,160,149,.35)",
+            "borderwidth": 1,
+            "font": {"color": "#3B4536"},
+        },
         "xaxis": {
-            "gridcolor": "#334155",
-            "linecolor": "#475569",
-            "tickfont": {"color": "#94A3B8"},
+            "gridcolor": "#C8C0AE",
+            "linecolor": "#A8A095",
+            "tickfont": {"color": "#8B8578"},
         },
         "yaxis": {
-            "gridcolor": "#334155",
-            "linecolor": "#475569",
-            "tickfont": {"color": "#94A3B8"},
+            "gridcolor": "#C8C0AE",
+            "linecolor": "#A8A095",
+            "tickfont": {"color": "#8B8578"},
         },
     }
 
@@ -364,14 +403,14 @@ with left:
 with right:
     sectors = pd.Series(assets, index=assets).map(get_sector)
     sector_palette = {
-        "Financial Services": "#38BDF8",
-        "IT": "#A78BFA",
-        "Energy/Oil & Gas": "#F59E0B",
-        "FMCG": "#34D399",
-        "Healthcare": "#F43F5E",
-        "Automobile": "#FB923C",
-        "Metals & Mining": "#94A3B8",
-        "Cement/Construction": "#FDE047",
+        "Financial Services": "#3B4536",
+        "IT": "#7A8F6E",
+        "Energy/Oil & Gas": "#8B6B2B",
+        "FMCG": "#5C6B52",
+        "Healthcare": "#8B4B4B",
+        "Automobile": "#B5A88E",
+        "Metals & Mining": "#A8A095",
+        "Cement/Construction": "#8B9E7E",
     }
     scatter = go.Figure(
         go.Scatter(
@@ -380,12 +419,12 @@ with right:
             mode="markers+text",
             text=assets,
             textposition="top center",
-            textfont={"size": 9, "color": "#CBD5E1"},
+            textfont={"size": 9, "color": "#8B8578"},
             marker={
                 "size": 10,
                 "color": [sector_palette.get(sector, "#CBD5E1") for sector in sectors],
                 "showscale": False,
-                "line": {"width": 1, "color": "#E2E8F0"},
+                "line": {"width": 1, "color": "#C8C0AE"},
             },
             customdata=np.column_stack(
                 [
@@ -431,7 +470,7 @@ with right:
             x=sector_summary["Sector"],
             y=sector_summary["Annualized Return"],
             name="Average return",
-            marker_color="#38BDF8",
+            marker_color="#3B4536",
             hovertemplate="%{x}<br>Average return: %{y:.2%}<extra></extra>",
         )
     )
@@ -440,7 +479,7 @@ with right:
             x=sector_summary["Sector"],
             y=sector_summary["Annualized Volatility"],
             name="Average volatility",
-            marker_color="#F59E0B",
+            marker_color="#B5A88E",
             hovertemplate="%{x}<br>Average volatility: %{y:.2%}<extra></extra>",
         )
     )
@@ -502,7 +541,7 @@ histogram.add_trace(
         histnorm="probability density",
         nbinsx=60,
         name="Daily log returns",
-        marker_color="#38BDF8",
+        marker_color="#3B4536",
         opacity=.72,
         hovertemplate="Return: %{x:.3%}<br>Density: %{y:.3f}<extra></extra>",
     )
@@ -524,7 +563,7 @@ if np.isfinite(volatility) and volatility > 0:
             y=curve_y,
             mode="lines",
             name="Normal curve",
-            line={"color": "#F59E0B", "width": 2},
+            line={"color": "#8B6B2B", "width": 2},
             hovertemplate="Normal density: %{y:.3f}<extra></extra>",
         )
     )
@@ -547,7 +586,7 @@ rolling_chart.add_trace(
         y=rolling["30-day rolling volatility"],
         mode="lines",
         name="30-day",
-        line={"color": "#38BDF8", "width": 2},
+        line={"color": "#3B4536", "width": 2},
         connectgaps=False,
     )
 )
@@ -557,7 +596,7 @@ rolling_chart.add_trace(
         y=rolling["90-day rolling volatility"],
         mode="lines",
         name="90-day",
-        line={"color": "#A78BFA", "width": 2},
+        line={"color": "#B5A88E", "width": 2},
         connectgaps=False,
     )
 )
@@ -570,7 +609,7 @@ box_chart.add_trace(
     go.Box(
         y=selected_returns,
         name=selected_asset,
-        marker_color="#38BDF8",
+        marker_color="#3B4536",
         boxmean=True,
         hovertemplate=f"{selected_asset}<br>Return: %{{y:.3%}}<extra></extra>",
     )
@@ -579,7 +618,7 @@ box_chart.add_trace(
     go.Box(
         y=market_return,
         name="Equal-weight market",
-        marker_color="#A78BFA",
+        marker_color="#B5A88E",
         boxmean=True,
         hovertemplate="Equal-weight market<br>Return: %{y:.3%}<extra></extra>",
     )

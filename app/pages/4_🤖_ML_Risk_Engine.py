@@ -1,4 +1,4 @@
-"""Share-based machine-learning risk and portfolio rebalancing engine."""
+﻿"""Share-based machine-learning risk and portfolio rebalancing engine."""
 
 from __future__ import annotations
 
@@ -35,30 +35,149 @@ apply_global_theme()
 st.markdown(
     """
 <style>
-.ml-shell { border-bottom: 1px solid #334155; margin-bottom: 1.5rem; padding: .5rem 0 1.25rem; }
-.ml-eyebrow { color: #38BDF8; font-family: 'JetBrains Mono', monospace; font-size: .7rem;
-  font-weight: 700; letter-spacing: .16em; margin-bottom: .65rem; text-transform: uppercase; }
-.ml-title { color: #F8FAFC !important; font-size: clamp(2rem, 4vw, 3.4rem); font-weight: 800;
-  letter-spacing: -.05em; line-height: 1.08; margin: 0; }
-.ml-subtitle { color: #94A3B8 !important; font-size: .9rem; line-height: 1.7; margin: .75rem 0 0; max-width: 860px; }
-.architecture-banner { background: #172033; border: 1px solid #334155; border-left: 3px solid #38BDF8;
-  border-radius: 10px; color: #CBD5E1; font-family: 'JetBrains Mono', monospace; font-size: .76rem;
-  line-height: 1.7; margin: 1rem 0 1.5rem; padding: 1rem 1.25rem; }
-.architecture-banner b { color: #F8FAFC; }
-.section-heading { color: #F8FAFC !important; font-size: 1rem; font-weight: 800; letter-spacing: .08em;
-  margin: 1.75rem 0 .85rem; text-transform: uppercase; }
-.section-heading span { color: #38BDF8; margin-right: .45rem; }
-.section-copy { color: #94A3B8 !important; font-size: .82rem; line-height: 1.65; margin: -.35rem 0 1rem; }
-.risk-kpi { background: #1E293B; border: 1px solid #334155; border-radius: 12px; min-height: 130px; padding: 1.25rem; }
-.risk-kpi-label { color: #94A3B8; font-family: 'JetBrains Mono', monospace; font-size: .64rem;
-  letter-spacing: .08em; line-height: 1.4; text-transform: uppercase; }
-.risk-kpi-value { color: #F8FAFC; font-size: 1.45rem; font-weight: 800; margin-top: .75rem; }
-.risk-kpi-note { color: #64748B; font-size: .7rem; margin-top: .35rem; }
-.sector-badge { background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.4); border-radius: 999px;
-  color: #7DD3FC; display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: .68rem;
-  letter-spacing: .06em; padding: .3rem .7rem; text-transform: uppercase; }
-div[data-testid="stPlotlyChart"] { border-color: #334155 !important; margin-bottom: .5rem; }
-section[data-testid="stSidebar"] { background: #172033 !important; border-right: 1px solid #334155; }
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+
+.ml-shell {
+  border-bottom: 1px solid #C8C0AE;
+  margin-bottom: 1.5rem;
+  padding: .5rem 0 1.25rem;
+}
+.ml-eyebrow {
+  color: #5C6B52;
+  font-family: 'Inter', sans-serif;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .18em;
+  margin-bottom: .65rem;
+  text-transform: uppercase;
+}
+.ml-title {
+  color: #3B4536 !important;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
+  margin: 0;
+}
+.ml-subtitle {
+  color: #8B8578 !important;
+  font-family: 'Inter', sans-serif;
+  font-size: .82rem;
+  line-height: 1.7;
+  margin: .75rem 0 0;
+  max-width: 860px;
+}
+.architecture-banner {
+  background: rgba(212, 204, 188, 0.6);
+  border: 1px solid #C8C0AE;
+  border-left: 3px solid #5C6B52;
+  border-radius: 10px;
+  color: #8B8578;
+  font-family: 'Inter', sans-serif;
+  font-size: .76rem;
+  line-height: 1.7;
+  margin: 1rem 0 1.5rem;
+  padding: 1rem 1.25rem;
+}
+.architecture-banner b { color: #222B1C; }
+.section-heading {
+  color: #3B4536 !important;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 1.75rem 0 .85rem;
+}
+.section-heading span { color: #5C6B52; margin-right: .45rem; }
+.section-copy {
+  color: #8B8578 !important;
+  font-family: 'Inter', sans-serif;
+  font-size: .82rem;
+  line-height: 1.65;
+  margin: -.35rem 0 1rem;
+}
+.risk-kpi {
+  background: #DCD5C6;
+  border: 1px solid #C8C0AE;
+  border-radius: 12px;
+  min-height: 130px;
+  padding: 1.25rem;
+  transition: border-color .2s ease, transform .2s ease;
+}
+.risk-kpi:hover { border-color: #3B4536; transform: translateY(-2px); }
+.risk-kpi-label {
+  color: #8B8578;
+  font-family: 'Inter', sans-serif;
+  font-size: .64rem;
+  letter-spacing: .08em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+.risk-kpi-value {
+  color: #3B4536;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  margin-top: .75rem;
+}
+.risk-kpi-note { color: #8B8578; font-size: .7rem; margin-top: .35rem; }
+.sector-badge {
+  background: rgba(59,69,54,.1);
+  border: 1px solid rgba(59,69,54,.25);
+  border-radius: 999px;
+  color: #5C6B52;
+  display: inline-block;
+  font-family: 'Inter', sans-serif;
+  font-size: .68rem;
+  letter-spacing: .06em;
+  padding: .3rem .7rem;
+  text-transform: uppercase;
+}
+div[data-testid="stPlotlyChart"] {
+  background: #DCD5C6 !important;
+  border: 1px solid #C8C0AE !important;
+  border-radius: 16px !important;
+  margin-bottom: .5rem;
+  padding: 0.5rem !important;
+}
+section[data-testid="stSidebar"] {
+  background: #D4CCBC !important;
+  border-right: 1px solid #C8C0AE;
+}
+[data-testid="stButton"] button,
+[data-testid="stFormSubmitButton"] button {
+  background: #222B1C !important;
+  border: 1px solid #222B1C !important;
+  border-radius: 24px !important;
+  color: #FFFFFF !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.74rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  box-shadow: none !important;
+}
+
+[data-testid="stButton"] button *,
+[data-testid="stFormSubmitButton"] button * {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+[data-testid="stButton"] button:hover,
+[data-testid="stFormSubmitButton"] button:hover {
+  background: #3B4536 !important;
+  border-color: #3B4536 !important;
+  box-shadow: 0 4px 14px rgba(34, 43, 28, .22) !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px);
+}
+
+[data-testid="stButton"] button:hover *,
+[data-testid="stFormSubmitButton"] button:hover * {
+  color: #FFFFFF !important;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -110,13 +229,30 @@ def train_live_model(
 
 def chart_layout(fig: go.Figure, title: str, height: int = 430) -> go.Figure:
     fig.update_layout(
-        template="plotly_dark",
-        title={"text": title, "x": 0.02},
+        template="plotly_white",
+        title={"text": title, "x": 0.02, "font": {"family": "Inter, sans-serif", "size": 13, "color": "#8B8578"}},
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font={"family": "Inter, sans-serif", "color": "#F8FAFC"},
+        font={"family": "Inter, sans-serif", "color": "#3B4536", "size": 12},
         margin={"l": 60, "r": 30, "t": 60, "b": 55},
         height=height,
+        legend={
+            "bgcolor": "rgba(220,213,198,0.9)",
+            "bordercolor": "rgba(168,160,149,.35)",
+            "borderwidth": 1,
+            "font": {"color": "#3B4536", "size": 11},
+        },
+        xaxis={
+            "gridcolor": "#C8C0AE",
+            "linecolor": "#A8A095",
+            "tickfont": {"color": "#8B8578"},
+        },
+        yaxis={
+            "gridcolor": "#C8C0AE",
+            "linecolor": "#A8A095",
+            "tickfont": {"color": "#8B8578"},
+        },
+        hoverlabel={"bgcolor": "#DCD5C6", "font": {"color": "#3B4536"}},
     )
     return fig
 
@@ -353,16 +489,16 @@ def main() -> None:
                 values=sector_concentration["Value"],
                 hole=0.62,
                 textinfo="label+percent",
-                marker={"line": {"color": "#1E293B", "width": 2}},
+                marker={"line": {"color": "#E8E3D7", "width": 2}},
                 hovertemplate="<b>%{label}</b><br>Value: ₹%{value:,.2f}<br>Weight: %{percent}<extra></extra>",
             )
         )
         sector_fig.add_annotation(
-            text=f"<b>{len(sector_concentration)}</b><br><span style='font-size:9px;color:#94A3B8'>SECTORS</span>",
+            text=f"<b>{len(sector_concentration)}</b><br><span style='font-size:9px;color:#8B8578'>SECTORS</span>",
             x=0.5,
             y=0.5,
             showarrow=False,
-            font={"family": "JetBrains Mono", "size": 18, "color": "#F8FAFC"},
+            font={"family": "Playfair Display, serif", "size": 18, "color": "#3B4536"},
         )
         st.plotly_chart(
             chart_layout(sector_fig, "Current Sector Concentration", 380),
@@ -431,7 +567,7 @@ def main() -> None:
             y=correlation.index,
             zmin=-1,
             zmax=1,
-            colorscale=[[0, "#F87171"], [0.5, "#1E293B"], [1, "#38BDF8"]],
+            colorscale=[[0, "#8B4B4B"], [0.5, "#DCD5C6"], [1, "#3B4536"]],
             texttemplate="%{z:.2f}",
             hovertemplate="%{y} ↔ %{x}<br>Correlation: %{z:.2f}<extra></extra>",
             colorbar={"title": "Correlation"},
@@ -455,7 +591,7 @@ def main() -> None:
         }
     ).dropna()
     area = go.Figure()
-    for column, color in zip(performance.columns, ["#38BDF8", "#34D399"]):
+    for column, color in zip(performance.columns, ["#3B4536", "#7A8F6E"]):
         area.add_trace(
             go.Scatter(
                 x=performance.index,
@@ -465,7 +601,7 @@ def main() -> None:
                 line={"color": color, "width": 2},
             )
         )
-    area.update_yaxes(title="Growth of ₹1", tickformat=".2f", gridcolor="#334155")
+    area.update_yaxes(title="Growth of ₹1", tickformat=".2f", gridcolor="#C8C0AE")
     area.update_xaxes(showgrid=False)
     st.plotly_chart(
         chart_layout(area, "Cumulative Returns Through Base Date", 420),
@@ -570,7 +706,7 @@ def main() -> None:
             go.Bar(
                 x=risk_breakdown["Sector"],
                 y=risk_breakdown["Predicted Volatility"],
-                marker_color="#F87171",
+                marker_color="#8B4B4B",
                 hovertemplate="%{x}<br>ML-scaled volatility: %{y:.2%}<extra></extra>",
             )
         )

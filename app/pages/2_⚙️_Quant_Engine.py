@@ -1,4 +1,4 @@
-"""
+﻿"""
 Quantitative Portfolio Risk Engine & Dynamic Asset Allocation Optimizer
 Frontend · Streamlit + Plotly · Powered by Real NIFTY 50 Historical Backend
 """
@@ -61,26 +61,26 @@ backdrop_css = "opacity: 1; visibility: visible; pointer-events: auto;" if is_pa
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {{
-  --bg-app:     #0F172A;
-  --bg-card:    #1E293B;
-  --bg-card-sub:#172033;
-  --bdr:        #334155;
-  --bdr-hover:  #475569;
-  --primary:    #38BDF8;
-  --primary-bg: rgba(56, 189, 248, 0.10);
-  --primary-dk: #0EA5E9;
-  --txt-dark:   #F8FAFC;
-  --txt-body:   #F8FAFC;
-  --txt-muted:  #94A3B8;
-  --green:      #10B981;
-  --green-bg:   rgba(16, 185, 129, 0.15);
-  --rose:       #F43F5E;
-  --rose-bg:    rgba(244, 63, 94, 0.15);
-  --amber:      #F59E0B;
-  --amber-bg:   rgba(245, 158, 11, 0.15);
+  --bg-app:     #E8E3D7;
+  --bg-card:    #DCD5C6;
+  --bg-card-sub:#D4CCBC;
+  --bdr:        #C8C0AE;
+  --bdr-hover:  #A8A095;
+  --primary:    #222B1C;
+  --primary-bg: rgba(34, 43, 28, 0.10);
+  --primary-dk: #151C11;
+  --txt-dark:   #3B4536;
+  --txt-body:   #3B4536;
+  --txt-muted:  #8B8578;
+  --green:      #5C6B52;
+  --green-bg:   rgba(92, 107, 82, 0.15);
+  --rose:       #8B4B4B;
+  --rose-bg:    rgba(139, 75, 75, 0.15);
+  --amber:      #8B6B2B;
+  --amber-bg:   rgba(139, 107, 43, 0.15);
   --nav-h:      58px;
 }}
 
@@ -89,7 +89,7 @@ st.markdown(f"""
 /* ── Global Background & Typography ── */
 .stApp {{
   background: var(--bg-app) !important;
-  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   color: var(--txt-body) !important;
 }}
 
@@ -114,7 +114,7 @@ button[data-testid="stSidebarCollapseButton"] {{
   display: none !important;
 }}
 
-/* Main content spacing & breathing room - LOCKED: NEVER SHIFTS ON SIDEBAR TOGGLE */
+/* Main content spacing & breathing room */
 section.main,
 .block-container,
 div[data-testid="stAppViewContainer"] > section.main {{
@@ -130,38 +130,39 @@ div[data-testid="stAppViewContainer"] > section.main {{
 .qp-nav {{
   position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
   z-index: 9998; display: flex; align-items: center; padding: 0 2rem;
-  background: #1E293B;
-  border-bottom: 1px solid #334155;
-  box-shadow: none;
+  background: #3B4536;
+  border-bottom: 1px solid #5C6B52;
+  box-shadow: 0 2px 12px rgba(59, 69, 54, 0.2);
 }}
 .qp-brand {{
-  font-size: 0.85rem; font-weight: 800; letter-spacing: 0.16em;
-  text-transform: uppercase; color: #FFFFFF; margin-left: 1rem; margin-right: 2.5rem;
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #F5F0E8; margin-left: 1rem; margin-right: 2.5rem;
   flex-shrink: 0; white-space: nowrap; display: flex; align-items: center; gap: 0.5rem;
 }}
-.qp-brand .hi {{ color: #38BDF8; font-weight: 900; }}
+.qp-brand .hi {{ color: #DCD5C6; font-weight: 400; font-style: italic; }}
 .qp-links {{
   display: flex; gap: 0.6rem; align-items: center; flex: 1;
 }}
 .nav-btn {{
   display: flex; align-items: center; gap: 0.45rem;
-  padding: 0.42rem 1.05rem; border-radius: 8px;
-  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em;
-  color: #94A3B8; text-decoration: none;
+  padding: 0.42rem 1.05rem; border-radius: 20px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #D4CCBC; text-decoration: none;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid transparent; background: transparent;
   white-space: nowrap; user-select: none;
 }}
 .nav-btn:hover {{
-  color: #38BDF8; background: rgba(56, 189, 248, 0.12);
-  border-color: #0284C7;
+  color: #F5F0E8; background: rgba(245, 240, 232, 0.12);
+  border-color: #5C6B52;
   transform: translateY(-1px);
 }}
 .nav-btn.active {{
-  color: #FFFFFF !important;
-  background: #0284C7 !important;
-  border-color: #38BDF8 !important;
-  box-shadow: 0 3px 12px rgba(2, 132, 199, 0.35);
+  color: #F5F0E8 !important;
+  background: #5C6B52 !important;
+  border-color: #7A8F6E !important;
 }}
 .nav-btn .ni {{ font-size: 0.82rem; opacity: 0.9; }}
 
@@ -172,28 +173,40 @@ div[data-testid="stAppViewContainer"] > section.main {{
   z-index: 10001;
 }}
 
-.simulator-nav-button [data-testid="stButton"] button {{
+.simulator-nav-button [data-testid="stButton"] button {
   padding: 0.42rem 1.05rem !important;
-  background: transparent !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  color: #94A3B8 !important;
-  font-size: 0.78rem !important;
-}}
+  background: #222B1C !important;
+  border: 1px solid #222B1C !important;
+  border-radius: 20px !important;
+  color: #FFFFFF !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
 
-.simulator-nav-button [data-testid="stButton"] button:hover {{
-  background: rgba(56, 189, 248, 0.12) !important;
-  border-color: #38BDF8 !important;
-  color: #38BDF8 !important;
+.simulator-nav-button [data-testid="stButton"] button * {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+.simulator-nav-button [data-testid="stButton"] button:hover {
+  background: #3B4536 !important;
+  border-color: #3B4536 !important;
+  color: #FFFFFF !important;
   transform: translateY(-1px) !important;
+}
+
+.simulator-nav-button [data-testid="stButton"] button:hover * {
+  color: #FFFFFF !important;
 }}
 
 /* ═══════ OFF-CANVAS SETTINGS DRAWER ═══════ */
 section[data-testid="stSidebar"],
 div[data-testid="stSidebarContent"],
 div[data-testid="stSidebarUserContent"] {{
-  background-color: #252830 !important;
-  color: #E2E8F0 !important;
+  background-color: #D4CCBC !important;
+  color: #3B4536 !important;
 }}
 
 section[data-testid="stSidebar"] {{
@@ -205,9 +218,9 @@ section[data-testid="stSidebar"] {{
   width: 480px !important;
   max-width: 90vw !important;
   z-index: 1000000 !important;
-  background-color: #252830 !important;
-  border-right: 1px solid #3A3F4D !important;
-  box-shadow: 16px 0 50px rgba(0, 0, 0, 0.75) !important;
+  background-color: #D4CCBC !important;
+  border-right: 1px solid #C8C0AE !important;
+  box-shadow: 16px 0 50px rgba(59, 69, 54, 0.25) !important;
   transform: {panel_transform} !important;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   overflow-y: auto !important;
@@ -220,7 +233,7 @@ div[data-testid="stSidebarContent"] {{
 }}
 
 [data-testid="stSidebar"] * {{
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
 }}
 
 [data-testid="stSidebar"] label,
@@ -228,57 +241,60 @@ div[data-testid="stSidebarContent"] {{
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] b,
 [data-testid="stSidebar"] h3 {{
-  color: #E2E8F0 !important;
+  color: #3B4536 !important;
 }}
 
 [data-testid="stSidebar"] [data-baseweb="select"] > div {{
-  background: #1A1D24 !important;
-  border: 1px solid #334155 !important;
+  background: #E8E3D7 !important;
+  border: 1px solid #C8C0AE !important;
   border-radius: 8px !important;
-  color: #FFFFFF !important;
+  color: #3B4536 !important;
 }}
 
-[data-testid="stSidebar"] [data-baseweb="tag"] {{
-  background: rgba(56, 189, 248, 0.2) !important;
-  border: 1px solid #0284C7 !important;
-  color: #38BDF8 !important;
-  border-radius: 6px !important;
+[data-testid="stSidebar"] [data-baseweb="tag"],
+[data-baseweb="tag"] {
+  background: #222B1C !important;
+  border: 1px solid #222B1C !important;
+  color: #FFFFFF !important;
+  border-radius: 16px !important;
   font-weight: 700 !important;
   font-size: 0.74rem !important;
+}
+
+[data-testid="stSidebar"] [data-baseweb="tag"] *,
+[data-baseweb="tag"] * {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
 }}
 
-[data-testid="stSidebar"] [data-baseweb="tag"] span {{
-  color: #38BDF8 !important;
-}}
-
-/* BaseWeb Dropdown Menus in Dark Theme */
+/* BaseWeb Dropdown Menus */
 div[data-baseweb="popover"],
 div[data-baseweb="menu"],
 ul[role="listbox"] {{
-  background-color: #1A1D24 !important;
-  border: 1px solid #334155 !important;
-  color: #E2E8F0 !important;
+  background-color: #DCD5C6 !important;
+  border: 1px solid #C8C0AE !important;
+  color: #3B4536 !important;
 }}
 
 li[role="option"] {{
-  background-color: #1A1D24 !important;
-  color: #E2E8F0 !important;
+  background-color: #DCD5C6 !important;
+  color: #3B4536 !important;
 }}
 
 li[role="option"]:hover,
 li[aria-selected="true"] {{
-  background-color: #252830 !important;
-  color: #38BDF8 !important;
+  background-color: #D4CCBC !important;
+  color: #3B4536 !important;
 }}
 
-/* Semi-transparent dark backdrop overlay */
+/* Backdrop overlay */
 .settings-backdrop {{
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(10, 12, 16, 0.72);
+  background: rgba(59, 69, 54, 0.45);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   z-index: 999990;
@@ -286,86 +302,77 @@ li[aria-selected="true"] {{
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }}
 
-/* ═══════ BUTTON ANIMATIONS & ELEVATED PRO LOOK ═══════ */
-[data-testid="stButton"] button {{
-  border-radius: 8px !important;
-  border: 1px solid #334155 !important;
-  background: #252830 !important;
+/* ═══════ BUTTONS (HIGH-CONTRAST DEEP GREEN + STARK WHITE TEXT) ═══════ */
+[data-testid="stButton"] button,
+[data-testid="stSidebar"] [data-testid="stButton"] button {
+  border-radius: 24px !important;
+  border: 1px solid #222B1C !important;
+  background: #222B1C !important;
   color: #FFFFFF !important;
   font-weight: 700 !important;
-  font-size: 0.78rem !important;
-  padding: 0.45rem 1rem !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+  font-size: 0.74rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  padding: 0.45rem 1.1rem !important;
+  box-shadow: none !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   white-space: nowrap !important;
   word-break: keep-all !important;
-}}
+}
 
-[data-testid="stButton"] button:hover {{
-  border-color: #38BDF8 !important;
-  background: rgba(56, 189, 248, 0.15) !important;
-  color: #38BDF8 !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(2, 132, 199, 0.30) !important;
-}}
-
-[data-testid="stButton"] button:active {{
-  transform: scale(0.98) !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-}}
-
-[data-testid="stSidebar"] [data-testid="stButton"] button {{
-  background: #1A1D24 !important;
-  border: 1px solid #334155 !important;
+[data-testid="stButton"] button *,
+[data-testid="stSidebar"] [data-testid="stButton"] button * {
   color: #FFFFFF !important;
-  font-size: 0.76rem !important;
-  font-weight: 600 !important;
-  border-radius: 8px !important;
-  padding: 0.45rem 0.6rem !important;
-}}
+  font-weight: 700 !important;
+}
 
-[data-testid="stSidebar"] [data-testid="stButton"] button:hover {{
-  background: rgba(56, 189, 248, 0.2) !important;
-  border-color: #38BDF8 !important;
-  color: #38BDF8 !important;
+[data-testid="stButton"] button:hover,
+[data-testid="stSidebar"] [data-testid="stButton"] button:hover {
+  border-color: #3B4536 !important;
+  background: #3B4536 !important;
+  color: #FFFFFF !important;
   transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(34, 43, 28, 0.22) !important;
+}
+
+[data-testid="stButton"] button:hover *,
+[data-testid="stSidebar"] [data-testid="stButton"] button:hover * {
+  color: #FFFFFF !important;
 }}
 
 /* ═══════ TIME HORIZON TOOLBAR ═══════ */
 [data-testid="stSegmentedControl"] {{
-  background: #252830 !important;
-  border: 1px solid #3A3F4D !important;
-  border-radius: 10px !important;
+  background: #DCD5C6 !important;
+  border: 1px solid #C8C0AE !important;
+  border-radius: 24px !important;
   padding: 4px !important;
   gap: 4px !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 }}
 
 [data-testid="stSegmentedControl"] button {{
   background: transparent !important;
-  color: #94A3B8 !important;
-  font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.75rem !important;
-  font-weight: 600 !important;
+  color: #8B8578 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
   border: 1px solid transparent !important;
-  border-radius: 7px !important;
+  border-radius: 20px !important;
   padding: 0.42rem 0.95rem !important;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }}
 
 [data-testid="stSegmentedControl"] button:hover {{
-  color: #38BDF8 !important;
-  background: rgba(56, 189, 248, 0.12) !important;
-  transform: translateY(-1px) !important;
+  color: #3B4536 !important;
+  background: rgba(59, 69, 54, 0.08) !important;
 }}
 
 [data-testid="stSegmentedControl"] button[aria-checked="true"],
 [data-testid="stSegmentedControl"] button[data-checked="true"],
 [data-testid="stSegmentedControl"] [data-baseweb="button-group"] button[aria-selected="true"] {{
-  background: #0284C7 !important;
+  background: #222B1C !important;
   color: #FFFFFF !important;
-  border-color: #38BDF8 !important;
-  box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35) !important;
+  border-color: #222B1C !important;
   font-weight: 700 !important;
 }}
 
@@ -375,16 +382,15 @@ li[aria-selected="true"] {{
 }}
 
 .flip-face {{
-  border: 1px solid #334155;
-  border-radius: 12px;
-  background: #252830;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid #C8C0AE;
+  border-radius: 16px;
+  background: #DCD5C6;
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }}
 
 .flip-wrap:hover .flip-face {{
-  border-color: #38BDF8;
-  box-shadow: 0 8px 24px rgba(2, 132, 199, 0.22);
+  border-color: #3B4536;
+  box-shadow: 0 6px 20px rgba(59, 69, 54, 0.15);
 }}
 
 .flip-front {{
@@ -396,7 +402,7 @@ li[aria-selected="true"] {{
 .fc-bar {{
   height: 3px;
   margin: 0 -1.3rem 0.9rem -1.3rem;
-  border-radius: 12px 12px 0 0;
+  border-radius: 16px 16px 0 0;
 }}
 
 .fc-row1 {{
@@ -407,9 +413,9 @@ li[aria-selected="true"] {{
 }}
 
 .fc-lbl {{
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--txt-muted);
 }}
@@ -419,72 +425,73 @@ li[aria-selected="true"] {{
 }}
 
 .fc-val {{
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Playfair Display', serif;
   font-size: 2.05rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1.1;
+  color: #3B4536;
   margin-bottom: 0.4rem;
 }}
 
 .fc-dlt {{
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Inter', sans-serif;
   font-size: 0.7rem;
   color: var(--txt-muted);
 }}
 
-.fc-dlt .up   {{ color: #10B981; font-weight: 700; }}
-.fc-dlt .down {{ color: #F43F5E; font-weight: 700; }}
+.fc-dlt .up   {{ color: #5C6B52; font-weight: 700; }}
+.fc-dlt .down {{ color: #8B4B4B; font-weight: 700; }}
 
 .metric-explanation {{
   min-height: 150px;
   padding: 1.1rem 1.3rem;
-  border: 1px solid #0284C7;
-  border-radius: 12px;
-  background: #1A1D24;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  border: 1px solid #C8C0AE;
+  border-radius: 16px;
+  background: #D4CCBC;
   display: flex;
   flex-direction: column;
 }}
 
 .fc-back-tag {{
   font-size: 0.6rem;
-  font-weight: 800;
-  letter-spacing: 0.15em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-bottom: 0.35rem;
 }}
 
 .fc-back-name {{
-  font-size: 0.86rem;
-  font-weight: 800;
-  color: #FFFFFF;
+  font-family: 'Playfair Display', serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #3B4536;
   margin-bottom: 0.4rem;
 }}
 
 .fc-back-desc {{
   font-size: 0.72rem;
-  color: #CBD5E1;
+  color: #8B8578;
   line-height: 1.6;
   flex: 1;
 }}
 
 .fc-back-eq {{
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Inter', monospace;
   font-size: 0.62rem;
-  color: #38BDF8;
-  background: #121418;
-  border: 1px solid #0284C7;
+  color: #3B4536;
+  background: #E8E3D7;
+  border: 1px solid #C8C0AE;
   border-radius: 6px;
   padding: 0.3rem 0.65rem;
   margin-top: 0.5rem;
 }}
 
 /* Color helpers */
-.c-blue   {{ color: #38BDF8 !important; }}
-.c-green  {{ color: #10B981 !important; }}
-.c-rose   {{ color: #F43F5E !important; }}
-.c-amber  {{ color: #F59E0B !important; }}
+.c-blue   {{ color: #3B4536 !important; }}
+.c-green  {{ color: #5C6B52 !important; }}
+.c-rose   {{ color: #8B4B4B !important; }}
+.c-amber  {{ color: #8B6B2B !important; }}
 
 /* ═══════ SECTION HEADERS & DETAILS PANEL ═══════ */
 .sec-anchor {{
@@ -512,34 +519,36 @@ li[aria-selected="true"] {{
   height: 18px;
   border-radius: 2px;
   flex-shrink: 0;
+  background: #5C6B52;
 }}
 
 .sec-title {{
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: #FFFFFF;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #3B4536;
 }}
 
 .sec-badge {{
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Inter', sans-serif;
   font-size: 0.62rem;
   font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   padding: 3px 10px;
   border-radius: 20px;
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid #0284C7;
-  color: #38BDF8;
+  background: rgba(59, 69, 54, 0.1);
+  border: 1px solid rgba(59, 69, 54, 0.25);
+  color: #5C6B52;
 }}
 
 .info-panel {{
-  background: #252830;
-  border: 1px solid #334155;
-  border-radius: 12px;
+  background: #DCD5C6;
+  border: 1px solid #C8C0AE;
+  border-radius: 16px;
   padding: 1.1rem 1.35rem;
   margin-bottom: 1.25rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   animation: ipSlide 0.22s ease;
 }}
 
@@ -549,25 +558,26 @@ li[aria-selected="true"] {{
 }}
 
 .info-panel h4 {{
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #38BDF8;
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #3B4536;
   margin: 0 0 0.45rem 0;
 }}
 
 .info-panel p {{
   font-size: 0.74rem;
-  color: #CBD5E1;
+  color: #8B8578;
   line-height: 1.65;
   margin: 0 0 0.45rem 0;
 }}
 
 .info-panel .eq {{
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Inter', monospace;
   font-size: 0.65rem;
-  color: #38BDF8;
-  background: #1A1D24;
-  border: 1px solid #38BDF8;
+  color: #3B4536;
+  background: #E8E3D7;
+  border: 1px solid #C8C0AE;
   border-radius: 6px;
   padding: 0.35rem 0.7rem;
   display: inline-block;
@@ -576,12 +586,11 @@ li[aria-selected="true"] {{
 
 /* ═══════ PLOTLY CHARTS & CONTAINERS ═══════ */
 [data-testid="stPlotlyChart"] {{
-  background: #252830 !important;
-  border: 1px solid #3A3F4D !important;
-  border-radius: 12px !important;
+  background: #DCD5C6 !important;
+  border: 1px solid #C8C0AE !important;
+  border-radius: 16px !important;
   padding: 1.25rem 1.25rem 0.5rem !important;
   margin-bottom: 2rem !important;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
 }}
 
 [data-testid="stHorizontalBlock"] {{
@@ -591,8 +600,8 @@ li[aria-selected="true"] {{
 /* Dividers & Hero */
 .glow-div {{
   height: 1px;
-  margin: 0.4rem 0 1.8rem 0;
-  background: linear-gradient(90deg, transparent, #3A3F4D 35%, #0284C7 50%, #3A3F4D 65%, transparent);
+  margin: 1.5rem 0;
+  background: #C8C0AE;
 }}
 
 .hero-wrap {{
@@ -600,43 +609,40 @@ li[aria-selected="true"] {{
 }}
 
 .hero-title {{
-  font-size: 1.75rem;
-  font-weight: 900;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 700;
   letter-spacing: -0.025em;
-  background: linear-gradient(115deg, #FFFFFF 0%, #38BDF8 60%, #0284C7 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #3B4536;
   margin: 0 0 0.25rem 0;
   line-height: 1.2;
 }}
 
 .hero-sub {{
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: #94A3B8;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  color: #8B8578;
   margin: 0 0 0.75rem 0;
 }}
 
 .hero-chips {{
   display: flex;
-  gap: 1.3rem;
+  gap: 1rem;
   flex-wrap: wrap;
 }}
 
 .hero-chip {{
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Inter', sans-serif;
   font-size: 0.68rem;
   font-weight: 600;
-  color: #E2E8F0;
+  color: #3B4536;
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  background: #252830;
+  background: #DCD5C6;
   padding: 0.3rem 0.7rem;
-  border-radius: 6px;
-  border: 1px solid #3A3F4D;
+  border-radius: 20px;
+  border: 1px solid #C8C0AE;
 }}
 
 .hero-chip .cd {{
@@ -648,13 +654,13 @@ li[aria-selected="true"] {{
 /* Sidebar Active Badge Chips */
 .asset-badge {{
   display: inline-block;
-  background: #121418;
-  color: #38BDF8;
-  border: 1px solid #3A3F4D;
+  background: #E8E3D7;
+  color: #3B4536;
+  border: 1px solid #C8C0AE;
   border-radius: 4px;
   padding: 2px 6px;
   margin: 2px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Inter', sans-serif;
   font-size: 0.68rem;
   font-weight: 600;
 }}
@@ -1122,40 +1128,40 @@ var_95_dollar = abs(var_95_pct) * 1_000_000
 # 6. SHARED PLOTLY THEME (MODERN ELEVATED DARK SURFACES)
 # ─────────────────────────────────────────────────────────────────────────────
 PLAYOUT = dict(
-    template="plotly_dark",
+    template="plotly_white",
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", color="#F8FAFC", size=12),
+    font=dict(family="Inter, sans-serif", color="#3B4536", size=12),
     margin=dict(l=18, r=18, t=42, b=18),
     legend=dict(
-        bgcolor="rgba(22, 27, 24, 0.95)", bordercolor="rgba(137,154,143,.20)",
-        borderwidth=1, font=dict(size=11, color="#F8FAFC"),
+        bgcolor="rgba(220, 213, 198, 0.95)", bordercolor="rgba(168, 160, 149, .35)",
+        borderwidth=1, font=dict(size=11, color="#3B4536"),
         orientation="h", yanchor="bottom", y=1.01, xanchor="right", x=1,
     ),
     xaxis=dict(showgrid=False, zeroline=False, showspikes=True,
-               tickfont=dict(color="#94A3B8", size=11),
-               title_font=dict(color="#F8FAFC", size=12, family="Inter"),
-               spikecolor="#38BDF8", spikethickness=1, spikedash="dot"),
-    yaxis=dict(showgrid=True, gridcolor="#334155",
-               tickfont=dict(color="#94A3B8", size=11),
-               title_font=dict(color="#F8FAFC", size=12, family="Inter"),
+               tickfont=dict(color="#8B8578", size=11),
+               title_font=dict(color="#3B4536", size=12, family="Inter"),
+               spikecolor="#5C6B52", spikethickness=1, spikedash="dot"),
+    yaxis=dict(showgrid=True, gridcolor="#C8C0AE",
+               tickfont=dict(color="#8B8578", size=11),
+               title_font=dict(color="#3B4536", size=12, family="Inter"),
                zeroline=False, showspikes=True,
-               spikecolor="#38BDF8", spikethickness=1, spikedash="dot"),
+               spikecolor="#5C6B52", spikethickness=1, spikedash="dot"),
 )
 
 def apply_layout(fig, h=390, **kw):
     fig.update_layout(**{**PLAYOUT, "height": h, **kw})
     fig.update_xaxes(
-        tickfont=dict(color="#94A3B8", size=11),
-        title_font=dict(color="#F8FAFC", size=12),
-        linecolor="#334155",
+        tickfont=dict(color="#8B8578", size=11),
+        title_font=dict(color="#3B4536", size=12),
+        linecolor="#A8A095",
         linewidth=1,
     )
     fig.update_yaxes(
-        tickfont=dict(color="#94A3B8", size=11),
-        title_font=dict(color="#F8FAFC", size=12),
-        gridcolor="#334155",
-        linecolor="#334155",
+        tickfont=dict(color="#8B8578", size=11),
+        title_font=dict(color="#3B4536", size=12),
+        gridcolor="#C8C0AE",
+        linecolor="#A8A095",
         linewidth=1,
     )
     return fig
@@ -1208,7 +1214,6 @@ def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
           <div class="fc-back-tag {back_tag_cls}">{back_tag}</div>
           <div class="fc-back-name">{back_name}</div>
           <div class="fc-back-desc">{desc}</div>
-          <div class="fc-back-eq">{eq}</div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -1364,26 +1369,26 @@ fig_main = go.Figure()
 
 fig_main.add_trace(go.Scatter(
     x=nav_ew.index, y=nav_ew.values, name="Equal Weight (1/N)",
-    line=dict(color="#A855F7", width=2.0, dash="dot"),
+    line=dict(color="#B5A88E", width=2.0, dash="dot"),
     hovertemplate="<b>Equal Weight</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
 ))
 
 fig_main.add_trace(go.Scatter(
     x=nav_mv.index, y=nav_mv.values, name="Min Volatility",
-    line=dict(color="#38BDF8", width=2.4),
+    line=dict(color="#3B4536", width=2.4),
     hovertemplate="<b>Min Volatility</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
 ))
 
 fig_main.add_trace(go.Scatter(
     x=nav_ms.index, y=nav_ms.values, name="Max Sharpe Portfolio",
-    line=dict(color="#10B981", width=3.4),
-    fill="tozeroy", fillcolor="rgba(16, 185, 129, 0.08)",
+    line=dict(color="#5C6B52", width=3.4),
+    fill="tozeroy", fillcolor="rgba(92, 107, 82, 0.12)",
     hovertemplate="<b>Max Sharpe</b><br>%{x|%d %b %Y}<br>NAV: ₹%{y:,.2f}<extra></extra>",
 ))
 
 apply_layout(
     fig_main, h=420,
-    yaxis=dict(tickprefix="₹", showgrid=True, gridcolor="#334155", zeroline=False),
+    yaxis=dict(tickprefix="₹", showgrid=True, gridcolor="#C8C0AE", zeroline=False),
     hovermode="x unified",
 )
 st.plotly_chart(fig_main, width="stretch", config={"displayModeBar": False})
@@ -1421,7 +1426,7 @@ with col_ef:
         mode="markers",
         marker=dict(
             color=frontier_df["s"],
-            colorscale="Viridis",
+            colorscale=[[0, "#DCD5C6"], [0.5, "#7A8F6E"], [1, "#3B4536"]],
             size=3.8,
             opacity=0.45,
             colorbar=dict(
@@ -1441,7 +1446,7 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=cal_x, y=cal_y,
         mode="lines",
-        line=dict(color="#F59E0B", width=2.0, dash="dash"),
+        line=dict(color="#8B6B2B", width=2.0, dash="dash"),
         name=f"CAL (Rf={rf_rate_pct:.1f}%)",
         hovertemplate="Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra>CAL</extra>",
     ))
@@ -1450,9 +1455,9 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=[ms_vol * 100], y=[ms_ret * 100],
         mode="markers+text",
-        marker=dict(symbol="star", size=19, color="#10B981", line=dict(color="#FFFFFF", width=1.5)),
+        marker=dict(symbol="star", size=19, color="#5C6B52", line=dict(color="#F5F0E8", width=1.5)),
         text=[" Max Sharpe"], textposition="top right",
-        textfont=dict(family="JetBrains Mono", size=10, color="#10B981"),
+        textfont=dict(family="Inter", size=10, color="#5C6B52"),
         name=f"Max Sharpe (SR={ms_sharpe:.2f})",
         hovertemplate="<b>Max Sharpe Portfolio</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<br>Sharpe: " + f"{ms_sharpe:.2f}<extra></extra>",
     ))
@@ -1460,9 +1465,9 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=[mv_vol * 100], y=[mv_ret * 100],
         mode="markers+text",
-        marker=dict(symbol="diamond", size=14, color="#38BDF8", line=dict(color="#FFFFFF", width=1.3)),
+        marker=dict(symbol="diamond", size=14, color="#3B4536", line=dict(color="#F5F0E8", width=1.3)),
         text=[" Min Vol"], textposition="bottom right",
-        textfont=dict(family="JetBrains Mono", size=10, color="#38BDF8"),
+        textfont=dict(family="Inter", size=10, color="#3B4536"),
         name=f"Min Vol (σ={mv_vol*100:.1f}%)",
         hovertemplate="<b>Min Volatility Portfolio</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra></extra>",
     ))
@@ -1470,9 +1475,9 @@ with col_ef:
     fig_ef.add_trace(go.Scatter(
         x=[ew_vol * 100], y=[ew_ret * 100],
         mode="markers+text",
-        marker=dict(symbol="circle", size=12, color="#A855F7", line=dict(color="#FFFFFF", width=1.3)),
+        marker=dict(symbol="circle", size=12, color="#B5A88E", line=dict(color="#F5F0E8", width=1.3)),
         text=[" Equal Weight"], textposition="top left",
-        textfont=dict(family="JetBrains Mono", size=9.5, color="#A855F7"),
+        textfont=dict(family="Inter", size=9.5, color="#B5A88E"),
         name="Equal Weight (1/N)",
         hovertemplate="<b>1/N Equal Weight</b><br>Vol: %{x:.2f}%<br>Return: %{y:.2f}%<extra></extra>",
     ))
@@ -1482,7 +1487,7 @@ with col_ef:
         xaxis_title="Annualized Volatility (%)",
         yaxis_title="Annualized Expected Return (%)",
         xaxis=dict(ticksuffix="%", showgrid=False),
-        yaxis=dict(ticksuffix="%", gridcolor="#334155"),
+        yaxis=dict(ticksuffix="%", gridcolor="#C8C0AE"),
         legend=dict(orientation="v", x=0.02, y=0.98, xanchor="left", yanchor="top", font=dict(size=9.5, color="#E2E8F0")),
     )
     st.plotly_chart(fig_ef, width="stretch", config={"displayModeBar": False})
@@ -1512,21 +1517,21 @@ with col_alloc:
         x=top_tickers,
         y=[ms_weights.get(t, 0.0) * 100 for t in top_tickers],
         name="Max Sharpe",
-        marker_color="#10B981",
+        marker_color="#5C6B52",
         hovertemplate="<b>%{x}</b><br>Max Sharpe: %{y:.2f}%<extra></extra>",
     ))
     fig_bar.add_trace(go.Bar(
         x=top_tickers,
         y=[mv_weights.get(t, 0.0) * 100 for t in top_tickers],
         name="Min Volatility",
-        marker_color="#38BDF8",
+        marker_color="#3B4536",
         hovertemplate="<b>%{x}</b><br>Min Vol: %{y:.2f}%<extra></extra>",
     ))
     fig_bar.add_trace(go.Bar(
         x=top_tickers,
         y=[ew_weights.get(t, 0.0) * 100 for t in top_tickers],
         name="Equal Weight",
-        marker_color="#A855F7",
+        marker_color="#B5A88E",
         hovertemplate="<b>%{x}</b><br>Equal Weight: %{y:.2f}%<extra></extra>",
     ))
 
@@ -1534,7 +1539,7 @@ with col_alloc:
         fig_bar, h=400,
         barmode="group",
         yaxis_title="Weight (%)",
-        yaxis=dict(ticksuffix="%", gridcolor="#334155"),
+        yaxis=dict(ticksuffix="%", gridcolor="#C8C0AE"),
         xaxis=dict(showgrid=False, tickangle=-40, tickfont=dict(size=9.5, family="JetBrains Mono", color="#94A3B8")),
         legend=dict(orientation="h", x=1.0, y=1.02, xanchor="right", font=dict(size=9.5, color="#E2E8F0")),
     )
@@ -1572,23 +1577,23 @@ with col_rv:
     fig_rv = go.Figure()
     fig_rv.add_trace(go.Scatter(
         x=vol_21.index, y=vol_21.values, name=f"{roll_window_short}d Realized Vol",
-        line=dict(color="#38BDF8", width=2.4),
+        line=dict(color="#3B4536", width=2.4),
         hovertemplate="%{x|%d %b %Y}<br>21d Vol: <b>%{y:.1f}%</b><extra></extra>",
     ))
     fig_rv.add_trace(go.Scatter(
         x=vol_63.index, y=vol_63.values, name=f"{roll_window_long}d Realized Vol",
-        line=dict(color="#A855F7", width=2.2, dash="dash"),
+        line=dict(color="#B5A88E", width=2.2, dash="dash"),
         hovertemplate="%{x|%d %b %Y}<br>63d Vol: <b>%{y:.1f}%</b><extra></extra>",
     ))
     fig_rv.add_hline(
-        y=ms_vol * 100, line=dict(color="#10B981", width=1.8, dash="dot"),
+        y=ms_vol * 100, line=dict(color="#5C6B52", width=1.8, dash="dot"),
         annotation_text=f"Sample Vol ({ms_vol*100:.1f}%)", annotation_position="right",
-        annotation_font=dict(color="#10B981", size=9.5, family="JetBrains Mono"),
+        annotation_font=dict(color="#5C6B52", size=9.5, family="Inter"),
     )
 
     apply_layout(
         fig_rv, h=340,
-        yaxis=dict(ticksuffix="%", gridcolor="#334155"),
+        yaxis=dict(ticksuffix="%", gridcolor="#C8C0AE"),
         xaxis=dict(showgrid=False),
         hovermode="x unified",
     )
@@ -1613,11 +1618,11 @@ with col_corr:
         z=corr_matrix.values,
         x=list(corr_matrix.columns),
         y=list(corr_matrix.index),
-        colorscale=[[0, "#E11D48"], [0.35, "#78350F"], [0.5, "#1E222B"], [0.75, "#0369A1"], [1, "#38BDF8"]],
+        colorscale=[[0, "#8B4B4B"], [0.5, "#DCD5C6"], [1, "#3B4536"]],
         zmin=-0.3, zmax=1.0,
         text=np.round(corr_matrix.values, 2),
         texttemplate="%{text:.2f}",
-        textfont=dict(size=8.5, family="JetBrains Mono", color="#FFFFFF"),
+        textfont=dict(size=8.5, family="Inter", color="#3B4536"),
         hovertemplate="%{y} vs %{x}<br>Correlation: <b>%{z:.3f}</b><extra></extra>",
         colorbar=dict(
             title=dict(text="ρ", font=dict(size=10, color="#94A3B8")),
@@ -1662,16 +1667,15 @@ with col_donut:
 
     donut_df = pd.DataFrame(list(non_zero_alloc.items()), columns=["ticker", "weight"]).sort_values("weight", ascending=False)
 
-    PALETTE = ["#10B981", "#38BDF8", "#F59E0B", "#F43F5E", "#A855F7",
-               "#06B6D4", "#FB923C", "#F472B6", "#60A5FA", "#A3E635", "#FDE047", "#34D399"]
+    PALETTE = ["#3B4536", "#5C6B52", "#7A8F6E", "#8B9E7E", "#B5A88E", "#8B6B2B", "#A8A095", "#8B4B4B", "#D4CCBC", "#6E7A68", "#9E8B70", "#4A5644"]
 
     fig_pie = go.Figure(go.Pie(
         labels=donut_df["ticker"],
         values=donut_df["weight"],
         hole=0.62,
-        marker=dict(colors=PALETTE[:len(donut_df)], line=dict(color="#252830", width=2)),
+        marker=dict(colors=PALETTE[:len(donut_df)], line=dict(color="#E8E3D7", width=2)),
         textinfo="label+percent",
-        textfont=dict(family="JetBrains Mono", size=9.5, color="#FFFFFF"),
+        textfont=dict(family="Inter", size=9.5, color="#F5F0E8"),
         hovertemplate="<b>%{label}</b><br>Weight: %{percent}<extra></extra>",
         direction="clockwise",
         sort=True,
@@ -1680,7 +1684,7 @@ with col_donut:
     fig_pie.add_annotation(
         text=f"<b>{len(donut_df)}</b><br><span style='font-size:9px;color:#94A3B8'>STOCKS</span>",
         x=0.5, y=0.5, showarrow=False,
-        font=dict(family="JetBrains Mono", size=19, color="#FFFFFF"),
+        font=dict(family="Playfair Display", size=19, color="#3B4536"),
     )
 
     apply_layout(fig_pie, h=345, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
@@ -1697,10 +1701,7 @@ with col_donut:
         .sum()
         .sort_values("weight", ascending=False)
     )
-    sector_colors = [
-        "#38BDF8", "#A78BFA", "#34D399", "#F59E0B", "#F43F5E",
-        "#FB923C", "#94A3B8", "#FDE047", "#06B6D4", "#F472B6",
-    ]
+    sector_colors = ["#3B4536", "#5C6B52", "#7A8F6E", "#8B9E7E", "#B5A88E", "#8B6B2B", "#A8A095", "#8B4B4B", "#D4CCBC", "#6E7A68", "#9E8B70"]
     sector_fig = go.Figure(
         go.Pie(
             labels=sector_allocations["sector"],
@@ -1708,7 +1709,7 @@ with col_donut:
             hole=0.62,
             marker=dict(
                 colors=sector_colors[: len(sector_allocations)],
-                line=dict(color="#252830", width=2),
+                line=dict(color="#E8E3D7", width=2),
             ),
             textinfo="label+percent",
             textfont=dict(family="JetBrains Mono", size=9, color="#FFFFFF"),
@@ -1721,7 +1722,7 @@ with col_donut:
         x=0.5,
         y=0.5,
         showarrow=False,
-        font=dict(family="JetBrains Mono", size=19, color="#FFFFFF"),
+        font=dict(family="Playfair Display", size=19, color="#3B4536"),
     )
     apply_layout(sector_fig, h=345, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
     st.markdown("#### Sector Allocation Breakdown")
@@ -1742,8 +1743,8 @@ with col_dd:
     fig_dd = go.Figure()
     fig_dd.add_trace(go.Scatter(
         x=dd_ms_series.index, y=dd_ms_series.values,
-        fill="tozeroy", fillcolor="rgba(244,63,94,0.12)",
-        line=dict(color="#F43F5E", width=2.0), name="Max Sharpe DD",
+        fill="tozeroy", fillcolor="rgba(139,75,75,0.12)",
+        line=dict(color="#8B4B4B", width=2.0), name="Max Sharpe DD",
         hovertemplate="%{x|%d %b %Y}<br>Drawdown: <b>%{y:.2f}%</b><extra></extra>",
     ))
 
@@ -1752,15 +1753,15 @@ with col_dd:
         fig_dd.add_annotation(
             x=min_idx, y=dd_ms_series.loc[min_idx],
             text=f"Trough: {max_dd_ms:.1f}%",
-            showarrow=True, arrowhead=2, arrowcolor="#F43F5E",
-            font=dict(color="#F43F5E", size=9.5, family="JetBrains Mono"),
-            bgcolor="#4C0519", bordercolor="#F43F5E",
+            showarrow=True, arrowhead=2, arrowcolor="#8B4B4B",
+            font=dict(color="#8B4B4B", size=9.5, family="Inter"),
+            bgcolor="#DCD5C6", bordercolor="#8B4B4B",
             borderwidth=1, borderpad=4, ay=-35,
         )
 
     apply_layout(
         fig_dd, h=345,
-        yaxis=dict(ticksuffix="%", gridcolor="#334155", zeroline=True, zerolinecolor="#475569", zerolinewidth=1),
+        yaxis=dict(ticksuffix="%", gridcolor="#C8C0AE", zeroline=True, zerolinecolor="#475569", zerolinewidth=1),
         xaxis=dict(showgrid=False),
         showlegend=False,
         hovermode="x",
@@ -1774,10 +1775,10 @@ with col_dd:
 st.markdown("""
 <div class="glow-div" style="margin-top:3rem;"></div>
 <div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 1.5rem 0;">
-  <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:#64748B;">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:#8B8578;">
     Quantitative Portfolio Risk Engine &nbsp;·&nbsp; Modern Portfolio Theory &nbsp;·&nbsp; NIFTY 50 Universe
   </span>
-  <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:#64748B;">
+  <span style="font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:#8B8578;">
     Streamlit + Plotly &nbsp;·&nbsp; IDSE Quant Lab © 2026
   </span>
 </div>
