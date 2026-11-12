@@ -22,7 +22,6 @@ warnings.filterwarnings("ignore")
 # ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Portfolio Risk Engine · NIFTY 50",
-    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -673,7 +672,7 @@ li[aria-selected="true"] {{
     <a class="nav-btn active" href="#sec-kpi"><span class="ni">◈</span>Overview</a>
     <a class="nav-btn" href="#sec-perf"><span class="ni">↗</span>Performance</a>
     <a class="nav-btn" href="#sec-analytics"><span class="ni">◎</span>Efficient Frontier</a>
-    <a class="nav-btn" href="#sec-risk"><span class="ni">⚡</span>Risk & Correlation</a>
+    <a class="nav-btn" href="#sec-risk">Risk & Correlation</a>
     <a class="nav-btn" href="#sec-portfolio"><span class="ni">◉</span>Asset Weights</a>
   </div>
 </nav>
@@ -683,8 +682,8 @@ li[aria-selected="true"] {{
 """, unsafe_allow_html=True)
 
 with st.container(key="simulator_nav_button"):
-    if st.button("📈 Historical Simulator", key="nav_historical_simulator"):
-        st.switch_page("pages/1_📈_Historical_Simulator.py")
+    if st.button("Historical Simulator", key="nav_historical_simulator"):
+        st.switch_page("pages/1_Historical_Simulator.py")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -709,11 +708,11 @@ def load_market_data() -> pd.DataFrame:
 try:
     master_prices = load_market_data()
 except Exception as exc:
-    st.error(f"❌ Failed to load market data: {exc}")
+    st.error(f"Failed to load market data: {exc}")
     st.stop()
 
 if master_prices.empty:
-    st.error("❌ Master price matrix is empty. Please verify that CSV files exist in data/raw or companies/.")
+    st.error("Master price matrix is empty. Please verify that CSV files exist in data/raw or companies/.")
     st.stop()
 
 all_surviving_tickers = sorted(master_prices.columns.tolist())
@@ -765,7 +764,7 @@ with st.sidebar:
         st.markdown("""
         <div style="padding-top:2px;">
           <h3 style="margin:0;font-size:1.1rem;font-weight:800;color:#FFFFFF;letter-spacing:-0.01em;white-space:nowrap;">
-            ⚙️ Settings Panel
+            Settings Panel
           </h3>
           <p style="margin:2px 0 0 0;font-size:0.74rem;color:#94A3B8;">
             Asset Universe &amp; Risk Benchmark
@@ -829,11 +828,11 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     if n_sel > 0:
-        with st.expander(f"📋 View Active Holdings ({n_sel})", expanded=False):
+        with st.expander(f"View Active Holdings ({n_sel})", expanded=False):
             chips_html = "".join([f'<span class="asset-badge">{t}</span>' for t in selected_assets])
             st.markdown(f'<div style="max-height:160px;overflow-y:auto;line-height:1.9;">{chips_html}</div>', unsafe_allow_html=True)
     else:
-        st.error("⚠️ No companies selected! Please choose at least 2 companies or click Top 10.")
+        st.error("No companies selected! Please choose at least 2 companies or click Top 10.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -847,7 +846,7 @@ HORIZONS = ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "3 Years", "5
 with st.container():
     col_tbar1, col_tbar2, col_tbar3 = st.columns([1.5, 1.2, 1.2])
     with col_tbar1:
-        st.button("⚙️ Configure Universe & Risk", key="btn_open_panel", on_click=_open_settings_panel, width="stretch")
+        st.button("Configure Universe & Risk", key="btn_open_panel", on_click=_open_settings_panel, width="stretch")
     with col_tbar2:
         st.markdown(f"""
         <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:700;color:#38BDF8;background:#252830;border:1px solid #3A3F4D;border-radius:8px;padding:0.46rem 0.9rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.25);">
@@ -905,7 +904,7 @@ with st.container():
             st.markdown(f"<div style='font-size:0.74rem;color:#94A3B8;padding-top:1.7rem;'>Available History: <b>{master_min_date}</b> → <b>{master_max_date}</b></div>", unsafe_allow_html=True)
 
         if custom_start and custom_end and custom_start > custom_end:
-            st.error("❌ **Invalid Date Range**: Start Date cannot be after End Date.")
+            st.error("**Invalid Date Range**: Start Date cannot be after End Date.")
             st.stop()
 
 
@@ -920,7 +919,6 @@ if n_sel == 0:
     <div id="sec-risk"></div>
     <div id="sec-portfolio"></div>
     <div style="background:#252830;border:2px dashed #F43F5E;border-radius:14px;padding:2.5rem 2rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:850px;margin:2rem auto;">
-      <div style="font-size:2.8rem;margin-bottom:0.6rem;">⚠️</div>
       <h3 style="font-size:1.3rem;font-weight:800;color:#F43F5E;margin:0 0 0.4rem 0;">No Companies Selected</h3>
       <p style="font-size:0.86rem;color:#94A3B8;max-width:560px;margin:0 auto 1.5rem auto;line-height:1.6;">
         Quantitative portfolio optimization, covariance estimation, and risk analytics require active assets. Open the settings drawer or select a preset below to instantly build your portfolio:
@@ -929,7 +927,7 @@ if n_sel == 0:
     """, unsafe_allow_html=True)
     col_ec1, col_ec2, col_ec3 = st.columns([1.2, 1.2, 1.2])
     with col_ec1:
-        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, width="stretch", key="ec_btn_open")
+        st.button("Open Universe Settings", on_click=_open_settings_panel, width="stretch", key="ec_btn_open")
     with col_ec2:
         st.button("✦ Load Top 10 Core Leaders", on_click=_preset_select_top10, width="stretch", key="ec_btn_top10")
     with col_ec3:
@@ -945,7 +943,6 @@ if n_sel == 1:
     <div id="sec-risk"></div>
     <div id="sec-portfolio"></div>
     <div style="background:#252830;border:2px dashed #F59E0B;border-radius:14px;padding:2.5rem 2rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:850px;margin:2rem auto;">
-      <div style="font-size:2.8rem;margin-bottom:0.6rem;">⚡</div>
       <h3 style="font-size:1.3rem;font-weight:800;color:#F59E0B;margin:0 0 0.4rem 0;">Only 1 Asset Selected ({single_name})</h3>
       <p style="font-size:0.86rem;color:#94A3B8;max-width:560px;margin:0 auto 1.5rem auto;line-height:1.6;">
         Modern Portfolio Theory optimization (Sharpe ratio maximization, minimum variance, and pairwise cross-asset correlation) mathematically requires at least <b>2 distinct assets</b> to construct a non-singular covariance matrix.
@@ -954,7 +951,7 @@ if n_sel == 1:
     """, unsafe_allow_html=True)
     col_ec1, col_ec2, col_ec3 = st.columns([1.2, 1.2, 1.2])
     with col_ec1:
-        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, width="stretch", key="ec_btn_open_1")
+        st.button("Open Universe Settings", on_click=_open_settings_panel, width="stretch", key="ec_btn_open_1")
     with col_ec2:
         st.button("✦ Add Top 5 Core Mega-Caps", on_click=_preset_select_top5, width="stretch", key="ec_btn_top5_1")
     with col_ec3:
@@ -1019,7 +1016,7 @@ sliced_prices = slice_price_matrix(
 )
 
 if len(sliced_prices) < 5:
-    st.error(f"❌ **Insufficient Historical Data**: Only {len(sliced_prices)} trading days found for the selected horizon. Please choose a broader interval (at least 5 trading days are required to calculate returns and covariance).")
+    st.error(f"**Insufficient Historical Data**: Only {len(sliced_prices)} trading days found for the selected horizon. Please choose a broader interval (at least 5 trading days are required to calculate returns and covariance).")
     st.stop()
 
 
@@ -1194,7 +1191,7 @@ def sec_header(title, badge="", color="#0284C7", info_id=None, info_html=""):
         if st.session_state[info_id]:
             st.markdown(f'<div class="info-panel">{info_html}</div>', unsafe_allow_html=True)
 
-def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
+def flip_card(card_id, bar_css, lbl, val_html, val_cls,
               dlt_html, back_tag, back_tag_cls, back_name, desc, eq):
     state_key = f"card_{card_id}_details"
     st.session_state.setdefault(state_key, False)
@@ -1216,19 +1213,11 @@ def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
         </div>
         """, unsafe_allow_html=True)
     else:
-        icon_colors = {
-            "cagr": "#10B981",
-            "sharpe": "#0284C7",
-            "maxdd": "#F43F5E",
-            "var": "#F59E0B",
-        }
-        icon_color = icon_colors.get(card_id, "#0284C7")
         st.markdown(f"""
         <div class="flip-face flip-front">
           <div class="fc-bar" style="background:{bar_css};"></div>
           <div class="fc-row1">
             <span class="fc-lbl">{lbl}</span>
-            <span class="fc-ico" style="background:{icon_color};color:#FFFFFF;border-radius:8px;padding:.4rem .5rem;box-shadow:0 3px 8px rgba(0,0,0,.3);">{icon}</span>
           </div>
           <div class="fc-val {val_cls}">{val_html}</div>
           <div class="fc-dlt">{dlt_html}</div>
@@ -1267,7 +1256,7 @@ sec_header(
     color="#0284C7",
     info_id="info-kpi",
     info_html="""
-<h4>📊 Performance Snapshot (Dynamic Time Horizon)</h4>
+<h4>Performance Snapshot (Dynamic Time Horizon)</h4>
 <p>Four primary risk-adjusted metrics calculated dynamically on the <b>Max Sharpe Portfolio</b> over your chosen time window. Figures are annualized via standard NSE 252-day convention.</p>
 <span class="eq">Base: INR · Confidence: 95% · Currency: Multi-Asset NIFTY 50</span>
 """,
@@ -1284,7 +1273,6 @@ with c1:
         "cagr",
         bar_css="linear-gradient(90deg,#059669,#10B981)",
         lbl="Max Sharpe CAGR",
-        icon="📈",
         val_html=f"{cagr_ms*100:+.1f}%",
         val_cls="c-green" if cagr_ms >= 0 else "c-rose",
         dlt_html=f'<span class="{"up" if diff_cagr >= 0 else "down"}">{"▲" if diff_cagr >= 0 else "▼"} {diff_cagr:+.1f}pp vs Equal Weight</span>',
@@ -1300,7 +1288,6 @@ with c2:
         "sharpe",
         bar_css="linear-gradient(90deg,#0284C7,#38BDF8)",
         lbl="Sharpe Ratio",
-        icon="⚡",
         val_html=f"{ms_sharpe:.2f}",
         val_cls="c-blue",
         dlt_html=f'<span class="{"up" if diff_sharpe >= 0 else "down"}">{"▲" if diff_sharpe >= 0 else "▼"} {diff_sharpe:+.2f} vs Equal Weight</span>',
@@ -1316,7 +1303,6 @@ with c3:
         "maxdd",
         bar_css="linear-gradient(90deg,#E11D48,#F43F5E)",
         lbl="Max Drawdown",
-        icon="📉",
         val_html=f"{max_dd_ms:.1f}%",
         val_cls="c-rose",
         dlt_html=f'<span class="{"up" if diff_dd >= 0 else "down"}">{"▲" if diff_dd >= 0 else "▼"} {abs(diff_dd):.1f}pp vs Equal Weight</span>',
@@ -1332,7 +1318,6 @@ with c4:
         "var",
         bar_css="linear-gradient(90deg,#D97706,#FBBF24)",
         lbl="Daily 95% VaR",
-        icon="🎯",
         val_html=f"₹{var_95_dollar:,.0f}",
         val_cls="c-amber",
         dlt_html=f'<span class="down">▼ {abs(var_95_pct)*100:.2f}% per ₹10L Notional</span>',
@@ -1356,7 +1341,7 @@ sec_header(
     color="#0284C7",
     info_id="info-perf",
     info_html="""
-<h4>📈 Equity Curve Comparison (Base ₹100)</h4>
+<h4>Equity Curve Comparison (Base ₹100)</h4>
 <p>Cumulative compounded performance of the three canonical MPT allocation strategies over your selected time window:</p>
 <p>• <b style="color:#10B981;">Max Sharpe Portfolio</b> — Mean-variance optimal tangential allocation<br>
 • <b style="color:#38BDF8;">Minimum Volatility Portfolio</b> — Global Minimum Variance (left-most frontier)<br>
@@ -1560,7 +1545,7 @@ with col_rv:
         color="#059669",
         info_id="info-vol",
         info_html="""
-<h4>⚡ Realized Rolling Risk</h4>
+<h4>Realized Rolling Risk</h4>
 <p>Rolling volatility computed directly on the real historical returns of the Max Sharpe portfolio across the selected window:</p>
 <p>• <b style="color:#38BDF8;">21-Day Window</b> — High-responsiveness short-term volatility<br>
 • <b style="color:#A855F7;">63-Day Window</b> — Quarterly structural volatility trend</p>
@@ -1734,7 +1719,7 @@ with col_dd:
         color="#E11D48",
         info_id="info-dd",
         info_html="""
-<h4>📉 Peak-to-Trough Drawdown Analysis</h4>
+<h4>Peak-to-Trough Drawdown Analysis</h4>
 <p>Measures the continuous drawdown percentage from prior high-water marks for the Max Sharpe portfolio across this specific time horizon.</p>
 """,
     )

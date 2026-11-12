@@ -16,7 +16,6 @@ from src.theme import apply_global_theme
 
 st.set_page_config(
     page_title="Quant Terminal | Portfolio Risk Engine",
-    page_icon="◈",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -487,7 +486,7 @@ with left_column:
             unsafe_allow_html=True,
         )
         if st.button("Launch simulator  →", key="historical_simulator", use_container_width=True):
-            open_page("pages/1_📈_Historical_Simulator.py")
+            open_page("pages/1_Historical_Simulator.py")
 
     with st.container(border=True):
         st.markdown(
@@ -500,7 +499,7 @@ with left_column:
             unsafe_allow_html=True,
         )
         if st.button("Open EDA & stats  →", key="eda", use_container_width=True):
-            st.switch_page("pages/3_📊_EDA_and_Stats.py")
+            st.switch_page("pages/3_EDA_and_Stats.py")
 
 with right_column:
     with st.container(border=True):
@@ -514,7 +513,7 @@ with right_column:
             unsafe_allow_html=True,
         )
         if st.button("Open quant engine  →", key="quant_engine", use_container_width=True):
-            open_page("pages/2_⚙️_Quant_Engine.py")
+            open_page("pages/2_Quant_Engine.py")
 
     with st.container(border=True):
         st.markdown(
@@ -527,7 +526,7 @@ with right_column:
             unsafe_allow_html=True,
         )
         if st.button("Open ML risk engine  →", key="ml_engine", use_container_width=True):
-            st.switch_page("pages/4_🤖_ML_Risk_Engine.py")
+            st.switch_page("pages/4_ML_Risk_Engine.py")
 
 
 st.markdown(

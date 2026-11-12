@@ -529,7 +529,6 @@ def generate_html(assets: list[dict]):
     <div class="filter-section">
       <div class="filter-row1">
         <div class="search-box">
-          <span class="search-icon">🔍</span>
           <input type="text" id="searchInput" class="search-input" placeholder="Search company e.g. TCS, Reliance, Infosys, HDFC..." oninput="filterStocks()">
         </div>
 
