@@ -360,7 +360,7 @@ def main() -> None:
             initial_ledger,
             num_rows="dynamic",
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             column_config={
                 "Ticker": st.column_config.SelectboxColumn(
                     "Ticker",
@@ -502,14 +502,14 @@ def main() -> None:
         )
         st.plotly_chart(
             chart_layout(sector_fig, "Current Sector Concentration", 380),
-            use_container_width=True,
+            width="stretch",
             config={"displayModeBar": False},
         )
     with concentration_columns[1]:
         display_concentration = sector_concentration.copy()
         display_concentration["Weight"] = display_concentration["Weight"].map(lambda value: f"{value:.2%}")
         display_concentration["Value"] = display_concentration["Value"].map(lambda value: f"₹{value:,.2f}")
-        st.dataframe(display_concentration, hide_index=True, use_container_width=True)
+        st.dataframe(display_concentration, hide_index=True, width="stretch")
 
     st.markdown('<div class="section-heading"><span>03</span> ML Multi-Horizon Risk</div>', unsafe_allow_html=True)
     selected_features = eligible_features.iloc[[-1]]
@@ -575,7 +575,7 @@ def main() -> None:
     )
     st.plotly_chart(
         chart_layout(heatmap, "Current Holdings Correlation Matrix", 440),
-        use_container_width=True,
+        width="stretch",
         config={"displayModeBar": False},
     )
     st.info(correlation_insight(correlation))
@@ -605,7 +605,7 @@ def main() -> None:
     area.update_xaxes(showgrid=False)
     st.plotly_chart(
         chart_layout(area, "Cumulative Returns Through Base Date", 420),
-        use_container_width=True,
+        width="stretch",
         config={"displayModeBar": False},
     )
     metric_columns = st.columns(3)
@@ -684,7 +684,7 @@ def main() -> None:
                 }
             ),
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
         )
 
     risk_by_ticker = asset_returns.std(ddof=1).mul(np.sqrt(252.0))
@@ -714,7 +714,7 @@ def main() -> None:
         risk_bar.update_yaxes(title="ML-scaled 30D volatility", tickformat=".0%")
         st.plotly_chart(
             chart_layout(risk_bar, "Industry-wise Risk Breakdown", 390),
-            use_container_width=True,
+            width="stretch",
             config={"displayModeBar": False},
         )
 

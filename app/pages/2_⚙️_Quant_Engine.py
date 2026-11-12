@@ -173,7 +173,7 @@ div[data-testid="stAppViewContainer"] > section.main {{
   z-index: 10001;
 }}
 
-.simulator-nav-button [data-testid="stButton"] button {
+.simulator-nav-button [data-testid="stButton"] button {{
   padding: 0.42rem 1.05rem !important;
   background: #222B1C !important;
   border: 1px solid #222B1C !important;
@@ -183,21 +183,21 @@ div[data-testid="stAppViewContainer"] > section.main {{
   font-weight: 700 !important;
   letter-spacing: 0.08em !important;
   text-transform: uppercase !important;
-}
+}}
 
-.simulator-nav-button [data-testid="stButton"] button * {
+.simulator-nav-button [data-testid="stButton"] button * {{
   color: #FFFFFF !important;
   font-weight: 700 !important;
-}
+}}
 
-.simulator-nav-button [data-testid="stButton"] button:hover {
+.simulator-nav-button [data-testid="stButton"] button:hover {{
   background: #3B4536 !important;
   border-color: #3B4536 !important;
   color: #FFFFFF !important;
   transform: translateY(-1px) !important;
-}
+}}
 
-.simulator-nav-button [data-testid="stButton"] button:hover * {
+.simulator-nav-button [data-testid="stButton"] button:hover * {{
   color: #FFFFFF !important;
 }}
 
@@ -252,17 +252,17 @@ div[data-testid="stSidebarContent"] {{
 }}
 
 [data-testid="stSidebar"] [data-baseweb="tag"],
-[data-baseweb="tag"] {
+[data-baseweb="tag"] {{
   background: #222B1C !important;
   border: 1px solid #222B1C !important;
   color: #FFFFFF !important;
   border-radius: 16px !important;
   font-weight: 700 !important;
   font-size: 0.74rem !important;
-}
+}}
 
 [data-testid="stSidebar"] [data-baseweb="tag"] *,
-[data-baseweb="tag"] * {
+[data-baseweb="tag"] * {{
   color: #FFFFFF !important;
   font-weight: 700 !important;
 }}
@@ -304,7 +304,7 @@ li[aria-selected="true"] {{
 
 /* ═══════ BUTTONS (HIGH-CONTRAST DEEP GREEN + STARK WHITE TEXT) ═══════ */
 [data-testid="stButton"] button,
-[data-testid="stSidebar"] [data-testid="stButton"] button {
+[data-testid="stSidebar"] [data-testid="stButton"] button {{
   border-radius: 24px !important;
   border: 1px solid #222B1C !important;
   background: #222B1C !important;
@@ -318,25 +318,25 @@ li[aria-selected="true"] {{
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   white-space: nowrap !important;
   word-break: keep-all !important;
-}
+}}
 
 [data-testid="stButton"] button *,
-[data-testid="stSidebar"] [data-testid="stButton"] button * {
+[data-testid="stSidebar"] [data-testid="stButton"] button * {{
   color: #FFFFFF !important;
   font-weight: 700 !important;
-}
+}}
 
 [data-testid="stButton"] button:hover,
-[data-testid="stSidebar"] [data-testid="stButton"] button:hover {
+[data-testid="stSidebar"] [data-testid="stButton"] button:hover {{
   border-color: #3B4536 !important;
   background: #3B4536 !important;
   color: #FFFFFF !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 4px 14px rgba(34, 43, 28, 0.22) !important;
-}
+}}
 
 [data-testid="stButton"] button:hover *,
-[data-testid="stSidebar"] [data-testid="stButton"] button:hover * {
+[data-testid="stSidebar"] [data-testid="stButton"] button:hover * {{
   color: #FFFFFF !important;
 }}
 
@@ -773,18 +773,18 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
     with col_close:
-        st.button("✖ Close", key="btn_close_panel", on_click=_close_settings_panel, use_container_width=True)
+        st.button("✖ Close", key="btn_close_panel", on_click=_close_settings_panel, width="stretch")
 
     st.markdown("<div style='height:1px;background:#3A3F4D;margin:0.6rem 0 0.9rem 0;'></div>", unsafe_allow_html=True)
 
     st.markdown("<b style='font-size:0.8rem;color:#FFFFFF;letter-spacing:0.02em;'>Quick Universe Presets</b>", unsafe_allow_html=True)
     col_p1, col_p2 = st.columns(2)
     with col_p1:
-        st.button("✦ All (42 Stocks)", on_click=_preset_select_all, use_container_width=True, key="sb_btn_all")
-        st.button("✦ Top 5 Core", on_click=_preset_select_top5, use_container_width=True, key="sb_btn_top5")
+        st.button("✦ All (42 Stocks)", on_click=_preset_select_all, width="stretch", key="sb_btn_all")
+        st.button("✦ Top 5 Core", on_click=_preset_select_top5, width="stretch", key="sb_btn_top5")
     with col_p2:
-        st.button("✦ Top 10 Leaders", on_click=_preset_select_top10, use_container_width=True, key="sb_btn_top10")
-        st.button("↺ Reset Universe", on_click=_preset_reset_default, use_container_width=True, key="sb_btn_reset")
+        st.button("✦ Top 10 Leaders", on_click=_preset_select_top10, width="stretch", key="sb_btn_top10")
+        st.button("↺ Reset Universe", on_click=_preset_reset_default, width="stretch", key="sb_btn_reset")
 
     st.markdown("<div style='margin-top:0.9rem;'><b style='font-size:0.8rem;color:#FFFFFF;letter-spacing:0.02em;'>Select / Deselect Individual Companies</b></div>", unsafe_allow_html=True)
     selected_assets = st.multiselect(
@@ -806,7 +806,6 @@ with st.sidebar:
         "Risk-Free Rate (Rf %)",
         min_value=2.0,
         max_value=10.0,
-        value=float(st.session_state.get("sb_rf_slider", 6.5)),
         step=0.25,
         label_visibility="collapsed",
         key="sb_rf_slider",
@@ -848,7 +847,7 @@ HORIZONS = ["1 Week", "1 Month", "3 Months", "6 Months", "1 Year", "3 Years", "5
 with st.container():
     col_tbar1, col_tbar2, col_tbar3 = st.columns([1.5, 1.2, 1.2])
     with col_tbar1:
-        st.button("⚙️ Configure Universe & Risk", key="btn_open_panel", on_click=_open_settings_panel, use_container_width=True)
+        st.button("⚙️ Configure Universe & Risk", key="btn_open_panel", on_click=_open_settings_panel, width="stretch")
     with col_tbar2:
         st.markdown(f"""
         <div style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;font-weight:700;color:#38BDF8;background:#252830;border:1px solid #3A3F4D;border-radius:8px;padding:0.46rem 0.9rem;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,0.25);">
@@ -930,11 +929,11 @@ if n_sel == 0:
     """, unsafe_allow_html=True)
     col_ec1, col_ec2, col_ec3 = st.columns([1.2, 1.2, 1.2])
     with col_ec1:
-        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, use_container_width=True, key="ec_btn_open")
+        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, width="stretch", key="ec_btn_open")
     with col_ec2:
-        st.button("✦ Load Top 10 Core Leaders", on_click=_preset_select_top10, use_container_width=True, key="ec_btn_top10")
+        st.button("✦ Load Top 10 Core Leaders", on_click=_preset_select_top10, width="stretch", key="ec_btn_top10")
     with col_ec3:
-        st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, use_container_width=True, key="ec_btn_all")
+        st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, width="stretch", key="ec_btn_all")
     st.stop()
 
 if n_sel == 1:
@@ -955,11 +954,11 @@ if n_sel == 1:
     """, unsafe_allow_html=True)
     col_ec1, col_ec2, col_ec3 = st.columns([1.2, 1.2, 1.2])
     with col_ec1:
-        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, use_container_width=True, key="ec_btn_open_1")
+        st.button("⚙️ Open Universe Settings", on_click=_open_settings_panel, width="stretch", key="ec_btn_open_1")
     with col_ec2:
-        st.button("✦ Add Top 5 Core Mega-Caps", on_click=_preset_select_top5, use_container_width=True, key="ec_btn_top5_1")
+        st.button("✦ Add Top 5 Core Mega-Caps", on_click=_preset_select_top5, width="stretch", key="ec_btn_top5_1")
     with col_ec3:
-        st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, use_container_width=True, key="ec_btn_all_1")
+        st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, width="stretch", key="ec_btn_all_1")
     st.stop()
 
 
@@ -1206,7 +1205,7 @@ def flip_card(card_id, bar_css, lbl, icon, val_html, val_cls,
         key=f"{card_id}_toggle",
         on_click=_toggle_session_value,
         args=(state_key,),
-        use_container_width=True,
+        width="stretch",
     )
     if is_explained:
         st.markdown(f"""

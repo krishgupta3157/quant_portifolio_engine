@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 if str(BASE_DIR) not in sys.path:
@@ -161,6 +160,19 @@ section[data-testid="stSidebar"] { display: none; }
 
 /* ═══════ HERO HEADER ═══════ */
 .hero { max-width: 920px; padding-bottom: 2.2rem; }
+div[data-testid="stHorizontalBlock"]:has(.hero) {
+  align-items: center;
+  gap: 2.5rem !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.hero) > div[data-testid="stColumn"] img {
+  border-radius: 22px;
+  box-shadow: 0 18px 44px rgba(34, 43, 28, .10);
+  mix-blend-mode: multiply;
+  opacity: .9;
+  transform: scale(1.08);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 62%, rgba(0, 0, 0, .92) 78%, transparent 100%);
+  mask-image: radial-gradient(ellipse at center, #000 62%, rgba(0, 0, 0, .92) 78%, transparent 100%);
+}
 .kicker {
   color: var(--olive-mid);
   font-family: 'Inter', sans-serif;
@@ -191,46 +203,6 @@ section[data-testid="stSidebar"] { display: none; }
   margin: 1.4rem 0 1.4rem;
   max-width: 640px;
 }
-.type-line {
-  background: rgba(34, 43, 28, .07);
-  border-left: 3px solid var(--olive);
-  border-radius: 0 8px 8px 0;
-  color: var(--olive);
-  display: inline-block;
-  font-family: 'Inter', sans-serif;
-  font-size: .75rem;
-  font-weight: 600;
-  letter-spacing: .04em;
-  overflow: hidden;
-  padding: .55rem 1rem;
-}
-
-.metrics {
-  border-bottom: 1px solid var(--line);
-  border-top: 1px solid var(--line);
-  display: flex;
-  gap: 0;
-  margin-bottom: 2.5rem;
-  max-width: 820px;
-}
-.metric { flex: 1; padding: 1rem 1.25rem 1rem 0; }
-.metric + .metric { border-left: 1px solid var(--line); padding-left: 1.25rem; }
-.metric-label {
-  color: var(--muted);
-  font-family: 'Inter', sans-serif;
-  font-size: .62rem;
-  font-weight: 700;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-.metric-value {
-  color: var(--text);
-  font-family: 'Playfair Display', serif;
-  font-size: 1.25rem;
-  font-weight: 700;
-  margin-top: .35rem;
-}
-
 .scroll-target {
   scroll-margin-top: 84px;
   display: block;
@@ -280,8 +252,14 @@ section[data-testid="stSidebar"] { display: none; }
   font-weight: 600;
 }
 
-/* ═══════ FEATURE CARDS (CLEAN, NO ICON BADGES, FLUSH HEADERS) ═══════ */
-div[data-testid="stVerticalBlockBorderWrapper"] {
+/* ═══════ FEATURE CARDS ═══════ */
+div[data-testid="stHorizontalBlock"]:has(.card-content) {
+  gap: 2.5rem !important;
+}
+div[data-testid="stColumn"]:has(.card-content) > div[data-testid="stVerticalBlock"] {
+  gap: 2rem !important;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -293,20 +271,23 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
   display: flex !important;
   flex-direction: column !important;
   justify-content: space-between !important;
-  transition: border-color .25s ease, transform .25s ease;
+  transition: border-color .25s ease, translate .25s ease, box-shadow .25s ease;
 }
-div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) {
+  animation: card-enter .65s cubic-bezier(.2, .75, .25, 1) both;
+}
+div[data-testid="stColumn"]:nth-child(2) div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) {
+  animation-delay: .12s;
+}
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content):hover {
   border-color: var(--olive);
-  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(34, 43, 28, .10);
+  translate: 0 -5px;
 }
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.sage-card):hover {
-  border-color: var(--olive-mid);
-}
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.warm-card):hover {
-  border-color: #A8A095;
-}
-div[data-testid="stVerticalBlockBorderWrapper"]:has(.terra-card):hover {
-  border-color: var(--terra);
+
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .card-content {
@@ -334,34 +315,12 @@ div[data-testid="stVerticalBlockBorderWrapper"]:has(.terra-card):hover {
   min-height: 64px;
   margin: 0 0 .8rem 0;
 }
-.card-meta {
-  color: var(--olive-mid);
-  font-family: 'Inter', sans-serif;
-  font-size: .62rem;
-  font-weight: 700;
-  letter-spacing: .1em;
-  margin: 0 0 .65rem 0;
-  text-transform: uppercase;
-}
-.badge {
-  background: rgba(34, 43, 28, .07);
-  border: 1px solid rgba(34, 43, 28, .15);
-  border-radius: 4px;
-  color: var(--muted);
-  display: inline-block;
-  font-family: 'Inter', sans-serif;
-  font-size: .62rem;
-  font-weight: 600;
-  margin-right: .35rem;
-  padding: .2rem .45rem;
-}
-
-div[data-testid="stVerticalBlockBorderWrapper"] .stButton {
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) .stButton {
   position: relative;
   z-index: 2;
   margin-top: 1rem;
 }
-div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) .stButton > button,
 .stButton > button {
   background: #222B1C !important;
   border: 1px solid #222B1C !important;
@@ -375,12 +334,12 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button,
   text-transform: uppercase !important;
   transition: all .2s ease;
 }
-div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button *,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) .stButton > button *,
 .stButton > button * {
   color: #FFFFFF !important;
   font-weight: 700 !important;
 }
-div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button:hover,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) .stButton > button:hover,
 .stButton > button:hover {
   background: #3B4536 !important;
   border-color: #3B4536 !important;
@@ -388,20 +347,11 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button:hover,
   color: #FFFFFF !important;
   transform: translateY(-1px);
 }
-div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button:hover *,
+div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) .stButton > button:hover *,
 .stButton > button:hover * {
   color: #FFFFFF !important;
 }
 
-.terminal-title {
-  color: var(--muted);
-  font-family: 'Inter', sans-serif;
-  font-size: .68rem;
-  font-weight: 700;
-  letter-spacing: .14em;
-  margin: 2.5rem 0 .6rem;
-  text-transform: uppercase;
-}
 .footer {
   border-top: 1px solid var(--line);
   color: var(--muted);
@@ -412,11 +362,11 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button:hover *,
   padding: 1.5rem 0 1rem;
   text-align: center;
 }
-.stack { color: var(--muted); margin-top: .5rem; }
-.stack b { color: var(--olive); font-weight: 600; }
 
 @media (max-width: 768px) {
   .block-container { padding: 5.5rem 1rem 2rem !important; }
+  div[data-testid="stHorizontalBlock"]:has(.card-content) { gap: 1.25rem !important; }
+  div[data-testid="stColumn"]:has(.card-content) > div[data-testid="stVerticalBlock"] { gap: 1.5rem !important; }
   .nav-inner { padding: 0 1rem; }
   .nav-left { gap: 1rem; }
   .nav-links { gap: 1rem; }
@@ -433,6 +383,15 @@ div[data-testid="stVerticalBlockBorderWrapper"] .stButton > button:hover *,
 @media (max-width: 480px) {
   .nav-links { display: none !important; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) {
+    animation: none;
+  }
+  div[data-testid="stVerticalBlock"]:has(> div[data-testid="stElementContainer"] .card-content) {
+    transition: none;
+  }
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -445,20 +404,23 @@ st.markdown(
 <nav class="fixed-top-nav">
   <div class="nav-inner">
     <div class="nav-left">
-      <a href="#" class="nav-brand">◈ QUANT TERMINAL</a>
+      <a href="#" class="nav-brand">QUANT TERMINAL</a>
       <div class="nav-links">
         <a href="#about" class="nav-link">About</a>
         <a href="#features" class="nav-link">Features</a>
-        <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="nav-link">Docs</a>
       </div>
-    </div>
-    <div class="nav-right">
-      <a href="pages/1_📈_Historical_Simulator.py" target="_self" class="nav-cta-btn">Launch Simulator →</a>
     </div>
   </div>
 </nav>
 
-<!-- Hero Section -->
+""",
+    unsafe_allow_html=True,
+)
+
+hero_copy_column, hero_image_column = st.columns([1.2, 0.8], gap="large")
+with hero_copy_column:
+    st.markdown(
+        """
 <div class="hero">
   <div class="kicker">Quantitative Intelligence Platform</div>
   <h1>See risk.<br><span>Build conviction.</span></h1>
@@ -467,15 +429,18 @@ st.markdown(
     historical scenarios, optimize allocations, and turn market noise into
     decisions you can defend.
   </p>
-  <div class="type-line">LightGBM Volatility Engine · NIFTY 50 Universe · 2.1M+ Observations · Status: Online</div>
 </div>
+""",
+        unsafe_allow_html=True,
+    )
+with hero_image_column:
+    st.image(
+        str(BASE_DIR / "app" / "assets" / "market-insight.png"),
+        width="stretch",
+    )
 
-<!-- Key Performance Metrics Strip -->
-<div class="metrics">
-  <div class="metric"><div class="metric-label">Data points</div><div class="metric-value">2.1M+</div></div>
-  <div class="metric"><div class="metric-label">Compute</div><div class="metric-value">Vectorized</div></div>
-  <div class="metric"><div class="metric-label">Universe</div><div class="metric-value">NIFTY 50</div></div>
-</div>
+st.markdown(
+    """
 
 <!-- Informational About Section -->
 <div id="about" class="scroll-target"></div>
@@ -490,7 +455,7 @@ st.markdown(
     </div>
     <div class="about-col">
       <p class="about-body">
-        By combining Markowitz Mean-Variance optimization with gradient-boosted volatility forecasting (LightGBM), the platform allows investors to test what-if scenarios across historical market regimes, establish mathematically optimal asset allocations, and quantify tail risk before volatility spikes occur.
+        By combining Markowitz Mean-Variance optimization with gradient-boosted volatility forecasting, the platform allows investors to test what-if scenarios across historical market regimes, establish mathematically optimal asset allocations, and quantify tail risk before volatility spikes occur.
       </p>
     </div>
   </div>
@@ -517,8 +482,6 @@ with left_column:
 <div class="card-content cyan">
   <div class="card-title">Historical Simulator</div>
   <div class="card-description">Travel back in time. Simulate custom investments, build your own portfolio with real historical data, and track your PnL.</div>
-  <div class="card-meta">● Live module</div>
-  <span class="badge">Plotly</span><span class="badge">Pandas</span><span class="badge">NIFTY 50</span>
 </div>
 """,
             unsafe_allow_html=True,
@@ -532,8 +495,6 @@ with left_column:
 <div class="card-content purple">
   <div class="card-title">Exploratory Data Analysis &amp; Stats</div>
   <div class="card-description">Dive deep into the raw numbers. Visualize volatility, price distributions, moving averages, and asset correlations.</div>
-  <div class="card-meta">● Live module</div>
-  <span class="badge">Plotly</span><span class="badge">NumPy</span><span class="badge">Statistics</span>
 </div>
 """,
             unsafe_allow_html=True,
@@ -548,8 +509,6 @@ with right_column:
 <div class="card-content emerald">
   <div class="card-title">Classical Quant Engine</div>
   <div class="card-description">Discover how Wall Street balances risk and reward using Modern Portfolio Theory and Markowitz optimization.</div>
-  <div class="card-meta">● Live module</div>
-  <span class="badge">SciPy</span><span class="badge">MPT</span><span class="badge">Markowitz</span>
 </div>
 """,
             unsafe_allow_html=True,
@@ -563,8 +522,6 @@ with right_column:
 <div class="card-content crimson">
   <div class="card-title">ML Dynamic Risk Engine</div>
   <div class="card-description">The brain of the platform. Watch machine learning models predict market crashes and dynamically rebalance your assets to safety.</div>
-  <div class="card-meta">● Live module</div>
-  <span class="badge">LightGBM</span><span class="badge">Scikit-Learn</span><span class="badge">ML</span>
 </div>
 """,
             unsafe_allow_html=True,
@@ -573,42 +530,10 @@ with right_column:
             st.switch_page("pages/4_🤖_ML_Risk_Engine.py")
 
 
-st.markdown('<div class="terminal-title">Market Overview Log</div>', unsafe_allow_html=True)
-components.html(
-    """
-<style>
-body { background: transparent; margin: 0; }
-.log { background: #DCD5C6; border: 1px solid #C8C0AE; border-radius: 12px; color: #7A7568; font: 11px/1.9 'Inter', sans-serif; height: 106px; overflow-y: auto; padding: 10px 16px; }
-.ok { color: #3B4536; font-weight: 700; } .info { color: #222B1C; font-weight: 600; } .warn { color: #8B6B2B; font-weight: 600; }
-</style>
-<div class="log" id="log"><span class="info">Initializing quantitative engine...</span><br></div>
-<script>
-const lines = [
-  ['info', '[INFO] Loading covariance matrices for 42 assets...'],
-  ['warn', '[WARN] Elevated volatility regime detected in Energy sector'],
-  ['info', '[INFO] Vectorized price matrix: 2,104,887 rows aligned'],
-  ['ok', '[OK] MPT Optimizer ready — Max Sharpe & Min Vol models active'],
-  ['ok', '[OK] LightGBM risk engine online and accepting requests']
-];
-let i = 0;
-function writeLine() {
-  if (i >= lines.length) return;
-  const [kind, text] = lines[i++];
-  document.getElementById('log').innerHTML += `<span class="${kind}">${text}</span><br>`;
-  setTimeout(writeLine, 520);
-}
-setTimeout(writeLine, 420);
-</script>
-""",
-    height=130,
-    scrolling=False,
-)
-
 st.markdown(
     """
 <div class="footer">
   Quantitative Portfolio Risk Engine
-  <div class="stack"><b>Python</b> · Pandas · LightGBM · Streamlit · Scikit-Learn · SciPy</div>
 </div>
 """,
     unsafe_allow_html=True,
