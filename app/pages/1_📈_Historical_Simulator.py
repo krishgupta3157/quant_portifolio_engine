@@ -561,7 +561,6 @@ st.markdown('<div class="section-title">Trade Ledger</div>', unsafe_allow_html=T
 form_col, reset_col = st.columns([5, 1])
 
 with form_col:
-    st.markdown('<div class="form-card">', unsafe_allow_html=True)
     with st.form("trade_form", clear_on_submit=False):
         asset_col, date_col = st.columns(2)
         with asset_col:
@@ -601,7 +600,6 @@ with form_col:
                 type="primary",
                 use_container_width=True,
             )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 with reset_col:
     st.markdown("<div style='height: 1.72rem'></div>", unsafe_allow_html=True)
