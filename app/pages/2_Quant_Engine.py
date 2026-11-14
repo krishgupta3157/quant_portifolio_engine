@@ -1006,8 +1006,8 @@ def slice_price_matrix(
 
     # Drop columns that have no active prices in this slice
     sub = sub.dropna(axis=1, how="all")
-    # Forward-fill and backward-fill any internal gaps
-    sub = sub.ffill().bfill()
+    # Forward-fill only from prior observations and remove leading gaps.
+    sub = sub.ffill().dropna(how="any")
     return sub
 
 
@@ -1023,12 +1023,39 @@ if len(sliced_prices) < 5:
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. DYNAMIC MPT OPTIMIZATION & MONTE CARLO SIMULATION
 # ─────────────────────────────────────────────────────────────────────────────
-opt = PortfolioOptimizer(sliced_prices, risk_free_rate=rf_rate, frequency=252)
+@st.cache_data(show_spinner="Running rolling-origin portfolio backtest...")
+def run_rolling_backtest(
+    prices: pd.DataFrame,
+    risk_free_rate: float,
+    lookback: int,
+) -> tuple[pd.DataFrame, dict[str, dict[str, float]], int]:
+    """Cache the rolling-origin backtest for the selected market window."""
+    optimizer = PortfolioOptimizer(
+        prices,
+        risk_free_rate=risk_free_rate,
+        frequency=252,
+    )
+    return optimizer.rolling_backtest(lookback)
 
-# Calculate dynamic weights
-ms_weights = opt.optimize_max_sharpe()
-mv_weights = opt.optimize_min_volatility()
-ew_weights = opt.get_equal_weights()
+
+backtest_lookback = min(252, len(sliced_prices) - 1)
+rolling_returns, rolling_weights, _ = run_rolling_backtest(
+    sliced_prices,
+    rf_rate,
+    backtest_lookback,
+)
+
+# Use only the most recent completed training window for allocation/frontier
+# statistics; the final day's return is excluded from parameter estimation.
+opt = PortfolioOptimizer(
+    sliced_prices.iloc[-backtest_lookback - 1:-1],
+    risk_free_rate=rf_rate,
+    frequency=252,
+)
+
+ms_weights = rolling_weights["Max Sharpe"]
+mv_weights = rolling_weights["Min Volatility"]
+ew_weights = rolling_weights["Equal Weight"]
 
 active_tickers = list(sliced_prices.columns)
 n_active = len(active_tickers)
@@ -1038,13 +1065,14 @@ w_ms = np.array([ms_weights.get(t, 0.0) for t in active_tickers])
 w_mv = np.array([mv_weights.get(t, 0.0) for t in active_tickers])
 w_ew = np.array([ew_weights.get(t, 0.0) for t in active_tickers])
 
-# Daily returns of the active universe
+# Daily returns are used for descriptive correlation views, not optimized
+# portfolio performance.
 daily_rets = sliced_prices.pct_change().dropna()
 
-# Portfolio daily returns series
-ret_ms_series = daily_rets.dot(w_ms) if len(daily_rets) > 0 else pd.Series(dtype=float)
-ret_mv_series = daily_rets.dot(w_mv) if len(daily_rets) > 0 else pd.Series(dtype=float)
-ret_ew_series = daily_rets.dot(w_ew) if len(daily_rets) > 0 else pd.Series(dtype=float)
+# Each optimized return uses weights estimated strictly before that date.
+ret_ms_series = rolling_returns["Max Sharpe"]
+ret_mv_series = rolling_returns["Min Volatility"]
+ret_ew_series = rolling_returns["Equal Weight"]
 
 # Cumulative NAV trajectories (Base $100)
 nav_ms = 100.0 * (1.0 + ret_ms_series).cumprod()

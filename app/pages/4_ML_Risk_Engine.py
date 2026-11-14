@@ -23,7 +23,7 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 from src.data_loader import LocalDataLoader
-from src.ml_risk_engine_test import engineer_features
+from src.ml_risk_engine_test import LOOKAHEAD_DAYS, engineer_features
 from src.optimization import PortfolioOptimizer
 from src.sector_mapping import get_sector
 from src.theme import apply_global_theme
@@ -203,7 +203,7 @@ def build_live_features(prices: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
     return engineer_features(prices)
 
 
-@st.cache_resource(show_spinner="Training LightGBM on the chronological training set...")
+@st.cache_resource(show_spinner="Training LightGBM on data available before the selected date...")
 def train_live_model(
     x_train: pd.DataFrame,
     y_train: pd.Series,
@@ -328,12 +328,6 @@ def main() -> None:
         return
 
     features, target = build_live_features(prices)
-    split_at = int(len(features) * 0.70)
-    if split_at <= 0 or split_at >= len(features):
-        st.error("The historical feature set is too small for a chronological model split.")
-        return
-    model = train_live_model(features.iloc[:split_at], target.iloc[:split_at])
-    crisis_threshold = float(target.iloc[:split_at].quantile(0.75))
     valid_tickers = sorted(prices.columns.tolist())
 
     st.markdown(
@@ -427,6 +421,18 @@ def main() -> None:
         return
     effective_date = eligible_prices.index[-1]
     feature_date = eligible_features.index[-1]
+    prediction_position = int(features.index.get_loc(feature_date))
+    training_end = prediction_position - LOOKAHEAD_DAYS
+    if training_end < max(100, LOOKAHEAD_DAYS + 1):
+        st.error(
+            "The selected base date does not have enough prior history for "
+            f"training with a {LOOKAHEAD_DAYS}-day target gap."
+        )
+        return
+    x_train = features.iloc[:training_end]
+    y_train = target.iloc[:training_end]
+    model = train_live_model(x_train, y_train)
+    crisis_threshold = float(y_train.quantile(0.75))
     selected_tickers = ledger["Ticker"].tolist()
     selected_prices = eligible_prices.loc[:, selected_tickers].dropna(how="all")
     selected_prices = selected_prices.ffill().dropna(how="any")
@@ -547,6 +553,7 @@ def main() -> None:
         horizon_days = int(horizon_options[horizon_choice])
         horizon_label = horizon_choice
     horizon_volatility = base_predicted_volatility * np.sqrt(horizon_days / 30.0)
+    horizon_threshold = crisis_threshold * np.sqrt(horizon_days / 30.0)
     risk_columns = st.columns(2)
     with risk_columns[0]:
         st.markdown(
@@ -554,7 +561,12 @@ def main() -> None:
             unsafe_allow_html=True,
         )
     with risk_columns[1]:
-        render_recommendation(inferred_style, horizon_volatility, crisis_threshold, horizon_label)
+        render_recommendation(
+            inferred_style,
+            horizon_volatility,
+            horizon_threshold,
+            horizon_label,
+        )
 
     st.markdown('<div class="section-heading"><span>04</span> Relationship Map</div>', unsafe_allow_html=True)
     asset_returns = selected_prices.pct_change().dropna(how="all")
@@ -585,7 +597,7 @@ def main() -> None:
     benchmark_cumulative, _, _, _ = portfolio_metrics(history)
     performance = pd.DataFrame(
         {
-            "Current share-weighted basket": selected_cumulative,
+            "Current equal-weighted basket": selected_cumulative,
             "NIFTY 42 equal-weight benchmark": benchmark_cumulative,
         }
     ).dropna()

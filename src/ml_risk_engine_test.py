@@ -115,13 +115,14 @@ def chronological_split(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
     """Split the ordered observations into the first 70% and final 30%."""
     split_at = int(len(features) * TRAIN_FRACTION)
-    if split_at <= 0 or split_at >= len(features):
+    test_start = split_at + LOOKAHEAD_DAYS
+    if split_at <= 0 or test_start >= len(features):
         raise ValueError("The dataset is too small for a 70/30 chronological split.")
     return (
         features.iloc[:split_at],
-        features.iloc[split_at:],
+        features.iloc[test_start:],
         target.iloc[:split_at],
-        target.iloc[split_at:],
+        target.iloc[test_start:],
     )
 
 
