@@ -21,6 +21,7 @@ import lightgbm as lgb
 import matplotlib
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import (
     mean_absolute_error,
@@ -28,6 +29,8 @@ from sklearn.metrics import (
     r2_score,
 )
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
+from sklearn.pipeline import Pipeline
+from sklearn.utils.validation import check_is_fitted
 from xgboost import XGBRegressor
 
 matplotlib.use("Agg")
@@ -39,6 +42,45 @@ RANDOM_STATE = 42
 ANNUALIZATION = np.sqrt(252)
 TARGET_HORIZON = 20
 MIN_ASSETS = 3
+
+
+class Winsorizer(BaseEstimator, TransformerMixin):
+    """Cap predictor values using quantile bounds learned from fit data."""
+
+    def __init__(
+        self,
+        lower_quantile: float = 0.01,
+        upper_quantile: float = 0.99,
+    ) -> None:
+        self.lower_quantile = lower_quantile
+        self.upper_quantile = upper_quantile
+
+    def fit(self, X: Any, y: Any = None) -> Winsorizer:
+        del y
+        if not 0.0 <= self.lower_quantile < self.upper_quantile <= 1.0:
+            raise ValueError("Winsorizer quantiles must satisfy 0 <= lower < upper <= 1.")
+        frame = X.copy() if isinstance(X, pd.DataFrame) else pd.DataFrame(X)
+        if frame.empty or frame.shape[1] == 0:
+            raise ValueError("Winsorizer requires a non-empty feature matrix.")
+
+        self.feature_columns_ = frame.columns.copy()
+        self.lower_bounds_ = frame.quantile(self.lower_quantile)
+        self.upper_bounds_ = frame.quantile(self.upper_quantile)
+        return self
+
+    def transform(self, X: Any) -> pd.DataFrame:
+        check_is_fitted(self, ["feature_columns_", "lower_bounds_", "upper_bounds_"])
+        if isinstance(X, pd.DataFrame):
+            if not X.columns.equals(self.feature_columns_):
+                raise ValueError("Winsorizer input columns differ from the fitted features.")
+            frame = X
+        else:
+            frame = pd.DataFrame(X, columns=self.feature_columns_)
+        return frame.clip(
+            lower=self.lower_bounds_,
+            upper=self.upper_bounds_,
+            axis="columns",
+        )
 
 
 def parse_args() -> argparse.Namespace:
@@ -215,13 +257,21 @@ def candidate_models() -> dict[str, tuple[Any, dict[str, list[Any]]]]:
 
 
 def evaluate_model(model: Any, x_test: pd.DataFrame, y_test: pd.Series) -> dict[str, float]:
-    """Evaluate one fitted regressor on the untouched chronological holdout."""
+    """Evaluate one fitted regressor on chronological observations."""
     predictions = np.asarray(model.predict(x_test), dtype=float)
+    return evaluate_predictions(y_test, predictions)
+
+
+def evaluate_predictions(
+    y_true: pd.Series,
+    predictions: np.ndarray,
+) -> dict[str, float]:
+    """Calculate regression metrics for predictions aligned to observed targets."""
     return {
-        "mse": float(mean_squared_error(y_test, predictions)),
-        "rmse": float(np.sqrt(mean_squared_error(y_test, predictions))),
-        "mae": float(mean_absolute_error(y_test, predictions)),
-        "r2": float(r2_score(y_test, predictions)),
+        "mse": float(mean_squared_error(y_true, predictions)),
+        "rmse": float(np.sqrt(mean_squared_error(y_true, predictions))),
+        "mae": float(mean_absolute_error(y_true, predictions)),
+        "r2": float(r2_score(y_true, predictions)),
     }
 
 
@@ -231,6 +281,8 @@ def plot_feature_importance(
     output_path: Path,
 ) -> None:
     """Save a horizontal feature-importance chart for the selected model."""
+    if isinstance(model, Pipeline):
+        model = model.named_steps["model"]
     importance = getattr(model, "feature_importances_", None)
     if importance is None:
         raise AttributeError("The selected model does not expose feature_importances_.")
@@ -280,55 +332,153 @@ def train_pipeline(data_dir: Path, output_dir: Path) -> dict[str, Any]:
 
     prices = load_price_matrix(data_dir)
     features, target = build_feature_frame(prices)
-    split_index = int(len(features) * 0.70)
-    x_train, x_test = features.iloc[:split_index], features.iloc[split_index:]
-    y_train, y_test = target.iloc[:split_index], target.iloc[split_index:]
-    if x_train.empty or x_test.empty:
-        raise ValueError("The 70/30 chronological split produced an empty partition.")
+    usable_rows = len(features) - 2 * TARGET_HORIZON
+    if usable_rows < 10:
+        raise ValueError(
+            "Not enough observations for a chronological 60/20/20 split "
+            f"with {TARGET_HORIZON}-row gaps."
+        )
 
-    LOGGER.info("Chronological split: %d train rows / %d test rows.", len(x_train), len(x_test))
-    cv_splits = min(5, max(2, len(x_train) // 100))
-    time_cv = TimeSeriesSplit(n_splits=cv_splits)
-    baseline_results: dict[str, dict[str, float]] = {}
-    fitted_models: dict[str, Any] = {}
+    train_count = int(usable_rows * 0.60)
+    validation_count = int(usable_rows * 0.20)
+    validation_start = train_count + TARGET_HORIZON
+    validation_end = validation_start + validation_count
+    test_start = validation_end + TARGET_HORIZON
 
-    for name, (model, _) in candidate_models().items():
-        model.fit(x_train, y_train)
-        fitted_models[name] = model
-        baseline_results[name] = evaluate_model(model, x_test, y_test)
-        LOGGER.info("Baseline %-12s RMSE %.6f", name, baseline_results[name]["rmse"])
+    x_train = features.iloc[:train_count]
+    y_train = target.iloc[:train_count]
+    x_validation = features.iloc[validation_start:validation_end]
+    y_validation = target.iloc[validation_start:validation_end]
+    x_test = features.iloc[test_start:]
+    y_test = target.iloc[test_start:]
+    if x_train.empty or x_validation.empty or x_test.empty:
+        raise ValueError("The gapped chronological split produced an empty partition.")
 
-    baseline_winner = min(baseline_results, key=lambda name: baseline_results[name]["rmse"])
-    LOGGER.info("Best baseline algorithm: %s", baseline_winner)
-    winning_model, winning_grid = candidate_models()[baseline_winner]
-    search = GridSearchCV(
-        estimator=winning_model,
-        param_grid=winning_grid,
-        scoring="neg_root_mean_squared_error",
-        cv=time_cv,
-        n_jobs=-1,
-        refit=True,
-        verbose=1,
+    LOGGER.info(
+        "Chronological split with %d-row gaps: %d train / %d validation / %d test rows.",
+        TARGET_HORIZON,
+        len(x_train),
+        len(x_validation),
+        len(x_test),
     )
-    search.fit(x_train, y_train)
-    final_model = search.best_estimator_
-    final_metrics = evaluate_model(final_model, x_test, y_test)
-    predictions = np.asarray(final_model.predict(x_test), dtype=float)
+    cv_splits = min(5, max(2, len(x_train) // 100))
+    fold_size = len(x_train) // (cv_splits + 1)
+    initial_train_size = len(x_train) - cv_splits * fold_size
+    if initial_train_size <= TARGET_HORIZON:
+        raise ValueError(
+            "The training partition is too small for time-series CV with "
+            f"a {TARGET_HORIZON}-row gap."
+        )
+    time_cv = TimeSeriesSplit(n_splits=cv_splits, gap=TARGET_HORIZON)
+    validation_results: dict[str, dict[str, float]] = {}
+    searches: dict[str, GridSearchCV] = {}
+    naive_validation = evaluate_predictions(
+        y_validation,
+        x_validation["portfolio_vol_20"].to_numpy(dtype=float),
+    )
+    validation_results[f"naive_{TARGET_HORIZON}d_volatility"] = naive_validation
 
-    LOGGER.info("Tuned winner: %s", baseline_winner)
-    LOGGER.info("Best parameters: %s", search.best_params_)
+    for name, (model, parameter_grid) in candidate_models().items():
+        pipeline = Pipeline(
+            [
+                ("winsorizer", Winsorizer()),
+                ("model", model),
+            ]
+        )
+        pipeline_grid = {
+            f"model__{parameter}": values
+            for parameter, values in parameter_grid.items()
+        }
+        search = GridSearchCV(
+            estimator=pipeline,
+            param_grid=pipeline_grid,
+            scoring="neg_root_mean_squared_error",
+            cv=time_cv,
+            n_jobs=-1,
+            refit=True,
+            verbose=1,
+        )
+        search.fit(x_train, y_train)
+        searches[name] = search
+        validation_results[name] = evaluate_model(
+            search.best_estimator_,
+            x_validation,
+            y_validation,
+        )
+        LOGGER.info(
+            "Validation %-12s RMSE %.6f",
+            name,
+            validation_results[name]["rmse"],
+        )
+
+    winning_model_name = min(
+        candidate_models(),
+        key=lambda name: validation_results[name]["rmse"],
+    )
+    winning_search = searches[winning_model_name]
+    LOGGER.info("Selected on validation data: %s", winning_model_name)
+    LOGGER.info("Best parameters: %s", winning_search.best_params_)
+
+    x_train_validation = pd.concat([x_train, x_validation])
+    y_train_validation = pd.concat([y_train, y_validation])
+    final_model = clone(winning_search.best_estimator_)
+    final_model.fit(x_train_validation, y_train_validation)
+
+    # The final model and naïve benchmark are each evaluated once on test data.
+    naive_test_metrics = evaluate_predictions(
+        y_test,
+        x_test["portfolio_vol_20"].to_numpy(dtype=float),
+    )
+    predictions = np.asarray(final_model.predict(x_test), dtype=float)
+    final_metrics = evaluate_predictions(y_test, predictions)
+    test_predictions = pd.Series(predictions, index=y_test.index)
+    crisis_threshold = float(y_train_validation.quantile(0.75))
+    test_regimes = pd.Series(
+        np.where(y_test >= crisis_threshold, "crisis", "normal"),
+        index=y_test.index,
+    )
+    regime_test_metrics: dict[str, dict[str, float]] = {}
+    for regime in ("normal", "crisis"):
+        mask = test_regimes.eq(regime)
+        if not mask.any():
+            LOGGER.warning(
+                "No %s observations in the test set; regime metrics are unavailable.",
+                regime,
+            )
+            continue
+        metrics = evaluate_predictions(
+            y_test.loc[mask],
+            test_predictions.loc[mask].to_numpy(dtype=float),
+        )
+        regime_test_metrics[regime] = {
+            "rmse": metrics["rmse"],
+            "mae": metrics["mae"],
+        }
+        LOGGER.info(
+            "Test %s regime (n=%d): RMSE %.6f, MAE %.6f",
+            regime,
+            int(mask.sum()),
+            metrics["rmse"],
+            metrics["mae"],
+        )
+
+    LOGGER.info("Final test metrics for %s:", winning_model_name)
     for metric, value in final_metrics.items():
         LOGGER.info("%s: %.6f", metric.upper(), value)
+    LOGGER.info("Naïve baseline test RMSE: %.6f", naive_test_metrics["rmse"])
 
     model_bundle = {
         "model": final_model,
-        "model_name": baseline_winner,
+        "model_name": winning_model_name,
         "feature_names": list(features.columns),
         "target_name": target.name,
         "target_horizon": TARGET_HORIZON,
         "annualization_factor": float(ANNUALIZATION),
         "metrics": final_metrics,
-        "best_params": search.best_params_,
+        "regime_test_metrics": regime_test_metrics,
+        "validation_metrics": validation_results,
+        "naive_test_metrics": naive_test_metrics,
+        "best_params": winning_search.best_params_,
         "asset_names": list(prices.columns),
     }
     joblib.dump(model_bundle, models_dir / "best_risk_model.pkl")
@@ -344,17 +494,24 @@ def train_pipeline(data_dir: Path, output_dir: Path) -> dict[str, Any]:
         charts_dir / "predicted_vs_actual_volatility.png",
     )
 
-    print("\nFinal model evaluation on chronological 30% holdout")
-    print(f"Algorithm: {baseline_winner}")
+    print("\nValidation comparison (model selection)")
+    for name, metrics in validation_results.items():
+        print(f"{name:>22} RMSE: {metrics['rmse']:.6f}")
+    print("\nFinal model evaluation on untouched chronological test set")
+    print(f"Algorithm: {winning_model_name}")
     for metric, value in final_metrics.items():
         print(f"{metric.upper():>5}: {value:.6f}")
+    print(f"Naïve baseline RMSE: {naive_test_metrics['rmse']:.6f}")
     print(f"Model: {models_dir / 'best_risk_model.pkl'}")
     print(f"Feature chart: {charts_dir / 'feature_importance.png'}")
     print(f"Prediction chart: {charts_dir / 'predicted_vs_actual_volatility.png'}")
     return {
-        "model_name": baseline_winner,
+        "model_name": winning_model_name,
         "metrics": final_metrics,
-        "best_params": search.best_params_,
+        "regime_test_metrics": regime_test_metrics,
+        "validation_metrics": validation_results,
+        "naive_test_metrics": naive_test_metrics,
+        "best_params": winning_search.best_params_,
     }
 
 

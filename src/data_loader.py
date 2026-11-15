@@ -234,9 +234,9 @@ class LocalDataLoader:
            (similarly for Open / High / Low)
         3. Outer-join on DatetimeIndex so no trading day is silently dropped.
         4. Forward-fill (``ffill``) gaps caused by instrument-specific
-           holidays, then back-fill (``bfill``) any leading NaNs.
-        5. Drop rows where **both** ``NIFTY_Close`` and ``VIX_Close``
-           are NaN (i.e. true non-trading days such as weekends).
+           holidays, then drop leading rows missing either closing price.
+        5. Drop rows where either closing price is still missing after
+           forward-filling (including dates before one source begins).
 
         Parameters
         ----------
@@ -259,12 +259,11 @@ class LocalDataLoader:
 
         master: pd.DataFrame = nifty.join(vix, how="outer")
 
-        # Forward-fill holiday gaps, then back-fill leading NaNs
-        master = master.ffill().bfill()
+        # Forward-fill only from observed values; never impute from the future.
+        master = master.ffill()
 
-        # Drop rows that are pure non-trading days (weekends / public holidays
-        # not covered by either dataset)
-        master = master.dropna(subset=["NIFTY_Close", "VIX_Close"], how="all")
+        # Require both sources to have begun before retaining a date.
+        master = master.dropna(subset=["NIFTY_Close", "VIX_Close"], how="any")
 
         log.info(
             "Master DataFrame built — %d rows, %d columns, %s → %s",

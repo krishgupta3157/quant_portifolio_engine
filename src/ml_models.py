@@ -14,8 +14,10 @@ import sys
 from pathlib import Path
 from typing import Final, Mapping
 
+import numpy as np
 import pandas as pd
 from lightgbm import LGBMRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import TimeSeriesSplit
 
 
@@ -41,6 +43,8 @@ class DynamicRiskModel:
         self.feature_columns: list[str] = list(self.FEATURE_COLUMNS)
         self.model: LGBMRegressor | None = None
         self.oof_predictions: pd.Series | None = None
+        self.validation_metrics: dict[str, float] | None = None
+        self.test_metrics: dict[str, float] | None = None
 
     def prepare_training_data(self, target_window: int = 30) -> pd.DataFrame:
         """Create causal features and a future realised-volatility target.
@@ -91,12 +95,12 @@ class DynamicRiskModel:
     def train_walk_forward(
         self,
     ) -> tuple[LGBMRegressor, pd.Series]:
-        """Train with five chronological folds and return OOF predictions.
+        """Train chronologically with horizon-sized gaps and return OOF predictions.
 
-        OOF predictions are indexed like the prepared data and contain values
-        only for validation observations.  The returned model is then fitted
-        once on all prepared rows, making it suitable for the live allocation
-        method without leaking future observations into any validation fold.
+        Non-gap observations are split 60/20/20 into train, validation, and
+        test partitions. Cross-validation and validation are confined to the
+        training history; the final test partition is evaluated once after
+        fitting on train plus validation data.
         """
         if self.training_data is None:
             self.prepare_training_data()
@@ -110,13 +114,41 @@ class DynamicRiskModel:
         features = self.training_data[self.feature_columns]
         target = self.training_data[target_column]
 
-        if len(self.training_data) <= 5:
-            raise ValueError("At least six prepared rows are required for CV.")
+        target_window = int(target_column.rsplit("_", 1)[1][:-1])
+        usable_rows = len(self.training_data) - 2 * target_window
+        if usable_rows < 10:
+            raise ValueError(
+                "Not enough observations for a chronological 60/20/20 split "
+                f"with {target_window}-row gaps."
+            )
 
-        splitter = TimeSeriesSplit(n_splits=5)
+        train_count = int(usable_rows * 0.60)
+        validation_count = int(usable_rows * 0.20)
+        validation_start = train_count + target_window
+        validation_end = validation_start + validation_count
+        test_start = validation_end + target_window
+
+        x_train = features.iloc[:train_count]
+        y_train = target.iloc[:train_count]
+        x_validation = features.iloc[validation_start:validation_end]
+        y_validation = target.iloc[validation_start:validation_end]
+        x_test = features.iloc[test_start:]
+        y_test = target.iloc[test_start:]
+        if x_train.empty or x_validation.empty or x_test.empty:
+            raise ValueError("The gapped chronological split produced an empty partition.")
+
+        n_splits = min(5, max(2, len(x_train) // 100))
+        fold_size = len(x_train) // (n_splits + 1)
+        initial_train_size = len(x_train) - n_splits * fold_size
+        if initial_train_size <= target_window:
+            raise ValueError(
+                "The training partition is too small for time-series CV "
+                f"with a {target_window}-row gap."
+            )
+        splitter = TimeSeriesSplit(n_splits=n_splits, gap=target_window)
         oof_predictions = pd.Series(float("nan"), index=self.training_data.index)
 
-        for train_indices, validation_indices in splitter.split(features):
+        for train_indices, validation_indices in splitter.split(x_train):
             fold_model = LGBMRegressor(
                 objective="regression",
                 n_estimators=200,
@@ -125,14 +157,30 @@ class DynamicRiskModel:
                 verbosity=-1,
             )
             fold_model.fit(
-                features.iloc[train_indices],
-                target.iloc[train_indices],
+                x_train.iloc[train_indices],
+                y_train.iloc[train_indices],
             )
-            oof_predictions.iloc[validation_indices] = fold_model.predict(
-                features.iloc[validation_indices]
+            oof_predictions.loc[x_train.index[validation_indices]] = fold_model.predict(
+                x_train.iloc[validation_indices]
             )
 
-        # This model is deliberately trained only after OOF evaluation.
+        validation_model = LGBMRegressor(
+            objective="regression",
+            n_estimators=200,
+            learning_rate=0.05,
+            random_state=42,
+            verbosity=-1,
+        )
+        validation_model.fit(x_train, y_train)
+        validation_predictions = validation_model.predict(x_validation)
+        self.validation_metrics = {
+            "mae": float(mean_absolute_error(y_validation, validation_predictions)),
+            "rmse": float(np.sqrt(mean_squared_error(y_validation, validation_predictions))),
+            "r2": float(r2_score(y_validation, validation_predictions)),
+        }
+
+        final_features = pd.concat([x_train, x_validation])
+        final_target = pd.concat([y_train, y_validation])
         self.model = LGBMRegressor(
             objective="regression",
             n_estimators=200,
@@ -140,7 +188,13 @@ class DynamicRiskModel:
             random_state=42,
             verbosity=-1,
         )
-        self.model.fit(features, target)
+        self.model.fit(final_features, final_target)
+        test_predictions = self.model.predict(x_test)
+        self.test_metrics = {
+            "mae": float(mean_absolute_error(y_test, test_predictions)),
+            "rmse": float(np.sqrt(mean_squared_error(y_test, test_predictions))),
+            "r2": float(r2_score(y_test, test_predictions)),
+        }
         self.oof_predictions = oof_predictions
         return self.model, oof_predictions
 
@@ -211,6 +265,8 @@ if __name__ == "__main__":
 
     risk_model = DynamicRiskModel(macro_data)
     _, oof_predictions = risk_model.train_walk_forward()
+    print(f"Validation metrics: {risk_model.validation_metrics}")
+    print(f"Final test metrics: {risk_model.test_metrics}")
 
     max_sharpe = {"TCS": 0.6, "RELIANCE": 0.4}
     min_vol = {"TCS": 0.2, "RELIANCE": 0.8}

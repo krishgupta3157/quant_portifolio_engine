@@ -21,13 +21,12 @@ Design Decisions
 ----------------
 - We pass the **price** DataFrame directly (not returns) to PyPortfolioOpt;
   the library handles log-return calculation internally via
-  ``mean_historical_return`` and ``sample_cov``.
+  ``mean_historical_return`` and Ledoit-Wolf covariance shrinkage.
 - Weights are cleaned (round-tripped through ``clean_weights``) to drop
   dust positions below the 1-bp threshold, keeping the output human-readable
   and rebalancing-friendly.
-- The covariance estimator is the standard sample covariance.  For a
-  production system, consider switching to ``CovarianceShrinkage`` (Ledoit-Wolf)
-  to reduce estimation error with ~50 assets.
+- Ledoit-Wolf covariance shrinkage and L2 regularization reduce estimation
+  instability for portfolios with highly correlated assets.
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ import pandas as pd
 
 # PyPortfolioOpt -- graceful import error
 try:
-    from pypfopt import expected_returns, risk_models
+    from pypfopt import expected_returns, objective_functions, risk_models
     from pypfopt.efficient_frontier import EfficientFrontier
 except ImportError as exc:
     raise ImportError(
@@ -56,6 +55,10 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("optimization")
+
+
+class OptimizationError(RuntimeError):
+    """Raised when an efficient-frontier optimization cannot be completed."""
 
 
 # =========================================================================== #
@@ -134,7 +137,7 @@ class PortfolioOptimizer:
 
         Uses PyPortfolioOpt's vectorised implementations:
         - ``mean_historical_return`` -- annualised compound growth rate
-        - ``sample_cov``             -- standard sample covariance (annualised)
+        - ``CovarianceShrinkage.ledoit_wolf`` -- shrunk covariance (annualised)
 
         Called automatically by optimisation methods on first invocation.
         """
@@ -150,11 +153,11 @@ class PortfolioOptimizer:
             frequency=self.frequency,
         )
 
-        self._S = risk_models.sample_cov(
+        self._S = risk_models.CovarianceShrinkage(
             self.prices,
             returns_data=False,
             frequency=self.frequency,
-        )
+        ).ledoit_wolf()
 
         log.info("Inputs ready -- mu shape: %s, S shape: %s", self._mu.shape, self._S.shape)
 
@@ -166,7 +169,7 @@ class PortfolioOptimizer:
 
     @property
     def S(self) -> pd.DataFrame:
-        """Annualised sample covariance matrix (DataFrame)."""
+        """Annualised Ledoit-Wolf covariance matrix (DataFrame)."""
         self._build_inputs()
         return self._S  # type: ignore[return-value]
 
@@ -236,14 +239,15 @@ class PortfolioOptimizer:
 
         Notes
         -----
-        If the solver diverges (e.g., due to near-singular covariance), the
-        method logs a warning and falls back to the equal-weight portfolio.
+        If the solver diverges (e.g., due to near-singular covariance), an
+        ``OptimizationError`` is raised for the caller to handle explicitly.
         """
         try:
             ef = self._make_ef()
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
+                ef.add_objective(objective_functions.L2_reg, gamma=0.1)
                 ef.max_sharpe(risk_free_rate=self.risk_free_rate)
 
             raw_weights = ef.clean_weights(cutoff=1e-4, rounding=4)
@@ -268,11 +272,9 @@ class PortfolioOptimizer:
             return cleaned
 
         except Exception as exc:  # noqa: BLE001
-            log.warning(
-                "Max-Sharpe optimisation failed (%s). Falling back to equal weights.",
-                exc,
-            )
-            return self.get_equal_weights()
+            raise OptimizationError(
+                f"Max-Sharpe optimization failed: {exc}"
+            ) from exc
 
     def optimize_min_volatility(self) -> Dict[str, float]:
         """Minimise portfolio volatility using the Efficient Frontier.
@@ -301,6 +303,7 @@ class PortfolioOptimizer:
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
+                ef.add_objective(objective_functions.L2_reg, gamma=0.1)
                 ef.min_volatility()
 
             raw_weights = ef.clean_weights(cutoff=1e-4, rounding=4)
@@ -324,11 +327,104 @@ class PortfolioOptimizer:
             return cleaned
 
         except Exception as exc:  # noqa: BLE001
-            log.warning(
-                "Min-Volatility optimisation failed (%s). Falling back to equal weights.",
-                exc,
+            raise OptimizationError(
+                f"Minimum-volatility optimization failed: {exc}"
+            ) from exc
+
+    def rolling_backtest(
+        self,
+        lookback: int = 252,
+        rebalance_every: int = 21,
+    ) -> tuple[pd.DataFrame, dict[str, Dict[str, float]], int]:
+        """Backtest optimized allocations using only prices before each rebalance.
+
+        At each rebalance date after the initial lookback, weights are
+        estimated using the preceding ``lookback`` prices. Those weights are
+        applied only to subsequent close-to-close returns until the next
+        rebalance. Failed optimization windows use equal weights for that
+        strategy and are counted for caller notification.
+        """
+        if lookback <= 0:
+            raise ValueError("lookback must be a positive integer.")
+        if rebalance_every <= 0:
+            raise ValueError("rebalance_every must be a positive integer.")
+        if len(self.prices) < 2:
+            raise ValueError("At least two price rows are required for backtesting.")
+
+        lookback = min(lookback, len(self.prices) - 1)
+        ticker_count = len(self.tickers)
+        equal_weights = {
+            ticker: 1.0 / ticker_count
+            for ticker in self.tickers
+        }
+        returns: list[dict[str, float]] = []
+        latest_weights: dict[str, Dict[str, float]] = {}
+        failures = 0
+
+        def normalize(weights: Dict[str, float]) -> Dict[str, float]:
+            aligned = {ticker: float(weights.get(ticker, 0.0)) for ticker in self.tickers}
+            total = sum(aligned.values())
+            if total <= 0:
+                raise OptimizationError("Optimizer returned no positive portfolio weights.")
+            return {ticker: weight / total for ticker, weight in aligned.items()}
+
+        for rebalance_position in range(
+            lookback,
+            len(self.prices),
+            rebalance_every,
+        ):
+            window_start = rebalance_position - lookback
+            history = self.prices.iloc[window_start:rebalance_position]
+            window_optimizer = PortfolioOptimizer(
+                history,
+                risk_free_rate=self.risk_free_rate,
+                frequency=self.frequency,
             )
-            return self.get_equal_weights()
+            try:
+                max_sharpe_weights = normalize(
+                    window_optimizer.optimize_max_sharpe()
+                )
+            except OptimizationError:
+                max_sharpe_weights = equal_weights.copy()
+                failures += 1
+            try:
+                min_volatility_weights = normalize(
+                    window_optimizer.optimize_min_volatility()
+                )
+            except OptimizationError:
+                min_volatility_weights = equal_weights.copy()
+                failures += 1
+
+            latest_weights = {
+                "Max Sharpe": max_sharpe_weights,
+                "Min Volatility": min_volatility_weights,
+                "Equal Weight": equal_weights.copy(),
+            }
+            period_end = min(
+                rebalance_position + rebalance_every,
+                len(self.prices),
+            )
+            for position in range(rebalance_position, period_end):
+                observed_return = (
+                    self.prices.iloc[position]
+                    .div(self.prices.iloc[position - 1])
+                    .sub(1.0)
+                )
+                returns.append(
+                    {
+                        strategy: float(
+                            observed_return.mul(pd.Series(weights)).sum()
+                        )
+                        for strategy, weights in latest_weights.items()
+                    }
+                )
+
+        result = pd.DataFrame(
+            returns,
+            index=self.prices.index[lookback:],
+            columns=["Max Sharpe", "Min Volatility", "Equal Weight"],
+        )
+        return result, latest_weights, failures
 
 
 # =========================================================================== #
