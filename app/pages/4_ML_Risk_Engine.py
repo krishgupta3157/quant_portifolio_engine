@@ -1,4 +1,4 @@
-"""Share-based machine-learning risk and portfolio rebalancing engine."""
+"""Machine-learning risk and portfolio rebalancing engine."""
 
 from __future__ import annotations
 
@@ -73,13 +73,26 @@ st.markdown(
   border-left: 3px solid #5C6B52;
   border-radius: 10px;
   color: #8B8578;
-  font-family: 'Inter', sans-serif;
-  font-size: .76rem;
-  line-height: 1.7;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: .85rem 1.25rem;
   margin: 1rem 0 1.5rem;
   padding: 1rem 1.25rem;
 }
-.architecture-banner b { color: #222B1C; }
+.architecture-item {
+  font-family: 'Inter', sans-serif;
+  font-size: .76rem;
+  line-height: 1.55;
+  min-width: 0;
+}
+.architecture-item b {
+  color: #222B1C;
+  display: block;
+  font-size: .66rem;
+  letter-spacing: .08em;
+  margin-bottom: .18rem;
+  text-transform: uppercase;
+}
 .section-heading {
   color: #3B4536 !important;
   font-family: 'Playfair Display', serif;
@@ -183,7 +196,7 @@ section[data-testid="stSidebar"] {
 )
 
 
-@st.cache_data(show_spinner="Loading the 42-asset price matrix...")
+@st.cache_data(show_spinner="Loading the NIFTY asset price matrix...")
 def load_live_prices() -> pd.DataFrame:
     prices = LocalDataLoader().load_all_portfolio_assets(
         str(BASE_DIR / "companies"),
@@ -286,20 +299,20 @@ def portfolio_metrics(prices: pd.DataFrame) -> tuple[pd.Series, float, float, fl
 
 def infer_style(volatility: float) -> tuple[str, str]:
     if volatility < 0.12:
-        return "Conservative (Capital Preservation)", "info"
+        return "Lower-volatility profile", "info"
     if volatility <= 0.18:
         return "Balanced", "success"
-    return "Aggressive (Max Alpha)", "warning"
+    return "Higher-volatility profile", "warning"
 
 
 def render_recommendation(style: str, volatility: float, threshold: float, horizon: str) -> None:
     if volatility > threshold:
         st.warning(
-            f"Elevated crash risk detected over {horizon}. Your inferred "
-            f"{style} profile should use disciplined position sizing."
+            f"Forecast volatility is above the reference threshold for {horizon}. "
+            f"The current holdings have a {style}."
         )
     else:
-        st.success(f"Projected risk is within the model's normal range for {horizon}.")
+        st.success(f"Forecast volatility is at or below the reference threshold for {horizon}.")
 
 
 def clean_ledger(data: pd.DataFrame, valid_tickers: list[str]) -> pd.DataFrame:
@@ -334,22 +347,24 @@ def main() -> None:
         st.switch_page("app.py")
 
     st.markdown(
-        """
+        f"""
         <div class="ml-shell">
-          <div class="ml-eyebrow">// Feature 04 · Share-based robo-advisor</div>
+          <div class="ml-eyebrow">// Feature 04 · Portfolio Risk &amp; Rebalancing</div>
           <h1 class="ml-title">ML Dynamic Risk Engine &amp;<br>Rebalancing Desk</h1>
-          <p class="ml-subtitle">Enter your live holdings, let the engine infer your risk profile, and receive exact optimizer-driven buy or sell quantities.</p>
+          <p class="ml-subtitle">Enter your current holdings to review forecast portfolio risk and receive integer-share rebalance recommendations.</p>
         </div>
         <div class="architecture-banner">
-          <b>Model:</b> LightGBM &nbsp;|&nbsp; <b>Optimizer:</b> Long-only MPT
-          &nbsp;|&nbsp; <b>Universe:</b> 42 data-valid NIFTY assets
+          <div class="architecture-item"><b>Model</b>LightGBM regression · 30-trading-day forward volatility</div>
+          <div class="architecture-item"><b>Optimizer</b>Long-only MPT · minimum volatility or maximum Sharpe</div>
+          <div class="architecture-item"><b>Risk-free rate</b>6.5%</div>
+          <div class="architecture-item"><b>Available universe</b>{len(valid_tickers)} data-valid NIFTY assets</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     with st.form("share_based_risk_setup", clear_on_submit=False):
-        st.markdown("### 1 · Live Ledger")
+        st.markdown("### 1 · Current Holdings")
         st.caption("Add one row per holding. Duplicate tickers are consolidated automatically.")
         initial_ledger = pd.DataFrame(columns=["Ticker", "Shares Owned"])
         ledger_editor = st.data_editor(
@@ -386,8 +401,8 @@ def main() -> None:
             goal = st.radio(
                 "Rebalancing goal",
                 [
-                    "Minimize Crash Loss (Defensive Rebalance)",
-                    "Maximize Risk-Adjusted Profit (Aggressive Rebalance)",
+                    "Minimize Portfolio Volatility (Defensive Rebalance)",
+                    "Maximize Sharpe Ratio (Aggressive Rebalance)",
                 ],
             )
         submitted = st.form_submit_button("Analyze portfolio and calculate rebalance", type="primary")
@@ -403,7 +418,7 @@ def main() -> None:
         st.session_state["share_risk_goal"] = goal
 
     if not st.session_state.get("share_risk_analysis_active", False):
-        st.info("Enter your holdings above and submit the ledger to activate the robo-advisor.")
+        st.info("Enter your holdings above and submit the ledger to calculate risk and rebalance recommendations.")
         return
 
     ledger = st.session_state.get(
@@ -467,7 +482,7 @@ def main() -> None:
     snapshot_columns = st.columns(4)
     snapshot_values = [
         ("Current Portfolio Value", f"₹{total_value:,.2f}", f"Prices on {effective_date.date()}"),
-        ("Historical Annualized Volatility", f"{historical_volatility:.2%}", "Weighted share-based basket"),
+        ("Historical Annualized Volatility", f"{historical_volatility:.2%}", "Current holdings weights"),
         ("Holdings", f"{len(selected_tickers)}", "Distinct positions"),
         ("Objective", "Defensive" if "Minimize" in goal else "Aggressive", "Optimizer target"),
     ]
@@ -601,7 +616,7 @@ def main() -> None:
     performance = pd.DataFrame(
         {
             "Current equal-weighted basket": selected_cumulative,
-            "NIFTY 42 equal-weight benchmark": benchmark_cumulative,
+            f"NIFTY {len(valid_tickers)}-asset equal-weight benchmark": benchmark_cumulative,
         }
     ).dropna()
     area = go.Figure()

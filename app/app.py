@@ -427,9 +427,8 @@ with hero_copy_column:
   <div class="kicker">Quantitative Intelligence Platform</div>
   <h1>See risk.<br><span>Build conviction.</span></h1>
   <p class="hero-copy">
-    Institutional-grade portfolio intelligence, made transparent. Explore
-    historical scenarios, optimize allocations, and turn market noise into
-    decisions you can defend.
+    Explore historical portfolio behavior, risk measures, asset relationships,
+    and allocation methods using the historical NSE price data included with the project.
   </p>
 </div>
 """,
@@ -448,16 +447,16 @@ st.markdown(
 <div id="about" class="scroll-target"></div>
 <div class="about-section">
   <div class="section-label"><span>01</span> / About the Platform</div>
-  <h2 class="about-heading">Institutional rigor, simplified for modern portfolio architecture.</h2>
+  <h2 class="about-heading">Portfolio analysis grounded in quantitative methods.</h2>
   <div class="about-grid">
     <div class="about-col">
       <p class="about-body">
-        The Quant Portfolio Risk Engine bridges academic portfolio theory and practical investment decisions. It brings together historical market data and portfolio analytics to help investors assess risk, understand relationships between assets, and explore how portfolios may respond to changing market conditions.
+        The Quant Portfolio Risk Engine brings together historical market data and portfolio analytics to examine risk, relationships between assets, and portfolio behavior over the available sample.
       </p>
     </div>
     <div class="about-col">
       <p class="about-body">
-        By combining Markowitz Mean-Variance optimization with gradient-boosted volatility forecasting, the platform allows investors to test what-if scenarios across historical market regimes, establish mathematically optimal asset allocations, and quantify tail risk before volatility spikes occur.
+        The application includes Markowitz mean-variance allocation methods and a gradient-boosted model that estimates forward volatility. These tools support historical analysis and scenario exploration; they do not predict market direction or crash timing.
       </p>
     </div>
   </div>
@@ -483,7 +482,7 @@ with left_column:
             """
 <div class="card-content cyan">
   <div class="card-title">Historical Simulator</div>
-  <div class="card-description">Travel back in time. Simulate custom investments, build your own portfolio with real historical data, and track your PnL.</div>
+  <div class="card-description">Record historical whole-share trades, review portfolio value over time, and inspect holdings and profit or loss.</div>
 </div>
 """,
             unsafe_allow_html=True,
@@ -510,7 +509,7 @@ with right_column:
             """
 <div class="card-content emerald">
   <div class="card-title">Classical Quant Engine</div>
-  <div class="card-description">Discover how Wall Street balances risk and reward using Modern Portfolio Theory and Markowitz optimization.</div>
+  <div class="card-description">Compare portfolio allocations and historical risk and return using Modern Portfolio Theory methods.</div>
 </div>
 """,
             unsafe_allow_html=True,
@@ -523,7 +522,7 @@ with right_column:
             """
 <div class="card-content crimson">
   <div class="card-title">ML Dynamic Risk Engine</div>
-  <div class="card-description">The brain of the platform. Watch machine learning models predict market crashes and dynamically rebalance your assets to safety.</div>
+  <div class="card-description">Review a forward-volatility estimate and explore whole-share rebalance recommendations for entered holdings.</div>
 </div>
 """,
             unsafe_allow_html=True,

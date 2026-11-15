@@ -934,31 +934,6 @@ if n_sel == 0:
         st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, width="stretch", key="ec_btn_all")
     st.stop()
 
-if n_sel == 1:
-    single_name = selected_assets[0]
-    st.markdown(f"""
-    <div id="sec-kpi"></div>
-    <div id="sec-perf"></div>
-    <div id="sec-analytics"></div>
-    <div id="sec-risk"></div>
-    <div id="sec-portfolio"></div>
-    <div style="background:#252830;border:2px dashed #F59E0B;border-radius:14px;padding:2.5rem 2rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:850px;margin:2rem auto;">
-      <h3 style="font-size:1.3rem;font-weight:800;color:#F59E0B;margin:0 0 0.4rem 0;">Only 1 Asset Selected ({single_name})</h3>
-      <p style="font-size:0.86rem;color:#94A3B8;max-width:560px;margin:0 auto 1.5rem auto;line-height:1.6;">
-        Modern Portfolio Theory optimization (Sharpe ratio maximization, minimum variance, and pairwise cross-asset correlation) mathematically requires at least <b>2 distinct assets</b> to construct a non-singular covariance matrix.
-      </p>
-    </div>
-    """, unsafe_allow_html=True)
-    col_ec1, col_ec2, col_ec3 = st.columns([1.2, 1.2, 1.2])
-    with col_ec1:
-        st.button("Open Universe Settings", on_click=_open_settings_panel, width="stretch", key="ec_btn_open_1")
-    with col_ec2:
-        st.button("✦ Add Top 5 Core Mega-Caps", on_click=_preset_select_top5, width="stretch", key="ec_btn_top5_1")
-    with col_ec3:
-        st.button("✦ Load Full Universe (42)", on_click=_preset_select_all, width="stretch", key="ec_btn_all_1")
-    st.stop()
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. SLICING LOGIC
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1014,6 +989,13 @@ def slice_price_matrix(
 sliced_prices = slice_price_matrix(
     master_prices, time_horizon, selected_assets, custom_start, custom_end
 )
+unavailable_assets = [ticker for ticker in selected_assets if ticker not in sliced_prices.columns]
+if unavailable_assets:
+    st.warning(
+        "No usable prices were available for the selected horizon for: "
+        + ", ".join(unavailable_assets)
+        + ". These companies are excluded from the calculations."
+    )
 
 if len(sliced_prices) < 5:
     st.error(f"**Insufficient Historical Data**: Only {len(sliced_prices)} trading days found for the selected horizon. Please choose a broader interval (at least 5 trading days are required to calculate returns and covariance).")
@@ -1028,6 +1010,7 @@ def run_rolling_backtest(
     prices: pd.DataFrame,
     risk_free_rate: float,
     lookback: int,
+    rebalance_every: int,
 ) -> tuple[pd.DataFrame, dict[str, dict[str, float]], int]:
     """Cache the rolling-origin backtest for the selected market window."""
     optimizer = PortfolioOptimizer(
@@ -1035,20 +1018,51 @@ def run_rolling_backtest(
         risk_free_rate=risk_free_rate,
         frequency=252,
     )
-    return optimizer.rolling_backtest(lookback)
+    return optimizer.rolling_backtest(lookback, rebalance_every)
 
 
-backtest_lookback = min(252, len(sliced_prices) - 1)
+# Use a shorter estimation window for shorter horizons. A fixed 252-day
+# lookback leaves only one out-of-sample return when the selected history is
+# about one year long, making the chart and risk metrics unrepresentative.
+# Cap short-window estimates at one quarter, while preserving a minimum four
+# observations (the page already requires at least five price rows).
+# Keep a 252-session warm-up before the selected window when data is available.
+# This lets the backtest produce returns for the full chosen horizon instead
+# of consuming most of that horizon as its initial estimation period.
+warmup_prices = (
+    master_prices.loc[
+        master_prices.index < sliced_prices.index.min(), sliced_prices.columns
+    ]
+    .ffill()
+    .dropna(how="any")
+    .tail(252)
+)
+backtest_prices = pd.concat([warmup_prices, sliced_prices])
+backtest_lookback = min(252, len(backtest_prices) - 1)
+if backtest_lookback < 4:
+    st.error("Insufficient pre-horizon history to initialize portfolio optimization. Select a broader interval or a smaller universe.")
+    st.stop()
+backtest_rebalance_every = 21
 rolling_returns, rolling_weights, _ = run_rolling_backtest(
-    sliced_prices,
+    backtest_prices,
     rf_rate,
     backtest_lookback,
+    backtest_rebalance_every,
 )
+rolling_returns = rolling_returns.loc[rolling_returns.index >= sliced_prices.index.min()]
+if rolling_returns.empty:
+    st.error("No out-of-sample trading days are available for the selected horizon.")
+    st.stop()
 
-# Use only the most recent completed training window for allocation/frontier
-# statistics; the final day's return is excluded from parameter estimation.
+# Match the allocation and frontier statistics to the training window used at
+# the most recent rebalance; the first return after that window is out of sample.
+latest_rebalance_position = backtest_lookback + (
+    (len(backtest_prices) - 1 - backtest_lookback) // backtest_rebalance_every
+) * backtest_rebalance_every
 opt = PortfolioOptimizer(
-    sliced_prices.iloc[-backtest_lookback - 1:-1],
+    backtest_prices.iloc[
+        latest_rebalance_position - backtest_lookback:latest_rebalance_position
+    ],
     risk_free_rate=rf_rate,
     frequency=252,
 )
@@ -1074,10 +1088,13 @@ ret_ms_series = rolling_returns["Max Sharpe"]
 ret_mv_series = rolling_returns["Min Volatility"]
 ret_ew_series = rolling_returns["Equal Weight"]
 
-# Cumulative NAV trajectories (Base $100)
-nav_ms = 100.0 * (1.0 + ret_ms_series).cumprod()
-nav_mv = 100.0 * (1.0 + ret_mv_series).cumprod()
-nav_ew = 100.0 * (1.0 + ret_ew_series).cumprod()
+# Cumulative NAV trajectories (Base ₹100). Include the starting capital before
+# the first out-of-sample return so the chart and drawdown capture that move.
+nav_start_date = backtest_prices.index[backtest_prices.index.get_loc(ret_ms_series.index[0]) - 1]
+nav_start = pd.Series([100.0], index=[nav_start_date])
+nav_ms = pd.concat([nav_start, 100.0 * (1.0 + ret_ms_series).cumprod()])
+nav_mv = pd.concat([nav_start, 100.0 * (1.0 + ret_mv_series).cumprod()])
+nav_ew = pd.concat([nav_start, 100.0 * (1.0 + ret_ew_series).cumprod()])
 
 
 # ── Monte Carlo Simulation for Efficient Frontier ────────────────────────────
@@ -1120,19 +1137,25 @@ ms_ret, ms_vol, ms_sharpe = calc_portfolio_stats(w_ms, opt.mu, opt.S, rf_rate)
 mv_ret, mv_vol, mv_sharpe = calc_portfolio_stats(w_mv, opt.mu, opt.S, rf_rate)
 ew_ret, ew_vol, ew_sharpe = calc_portfolio_stats(w_ew, opt.mu, opt.S, rf_rate)
 
+def realized_sharpe(returns: pd.Series, risk_free_rate: float) -> float:
+    daily_volatility = float(returns.std(ddof=1))
+    if not np.isfinite(daily_volatility) or daily_volatility <= 0:
+        return 0.0
+    annual_return = float(returns.mean()) * 252
+    annual_volatility = daily_volatility * np.sqrt(252)
+    return (annual_return - risk_free_rate) / annual_volatility
+
+realized_ms_sharpe = realized_sharpe(ret_ms_series, rf_rate)
+realized_ew_sharpe = realized_sharpe(ret_ew_series, rf_rate)
+
 
 # ── KPI Calculations ─────────────────────────────────────────────────────────
 n_days = len(ret_ms_series)
 days_per_year = 252
 
-# Annualized CAGR
-if n_days >= 20:
-    years = n_days / days_per_year
-    cagr_ms = (nav_ms.iloc[-1] / 100.0) ** (1.0 / max(years, 0.08)) - 1.0
-    cagr_ew = (nav_ew.iloc[-1] / 100.0) ** (1.0 / max(years, 0.08)) - 1.0
-else:
-    cagr_ms = (nav_ms.iloc[-1] / 100.0) - 1.0 if len(nav_ms) > 0 else 0.0
-    cagr_ew = (nav_ew.iloc[-1] / 100.0) - 1.0 if len(nav_ew) > 0 else 0.0
+# Annualized CAGR over the actual out-of-sample return observations.
+cagr_ms = (nav_ms.iloc[-1] / 100.0) ** (days_per_year / n_days) - 1.0
+cagr_ew = (nav_ew.iloc[-1] / 100.0) ** (days_per_year / n_days) - 1.0
 
 # Max Drawdown
 cummax_ms = nav_ms.cummax()
@@ -1145,7 +1168,8 @@ max_dd_ew = float(dd_ew_series.min()) if len(dd_ew_series) > 0 else 0.0
 
 # 95% Daily Historical VaR
 var_95_pct = float(np.percentile(ret_ms_series, 5)) if len(ret_ms_series) > 0 else 0.0
-var_95_dollar = abs(var_95_pct) * 1_000_000
+var_95_loss_pct = max(0.0, -var_95_pct)
+var_95_dollar = var_95_loss_pct * 1_000_000
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1258,6 +1282,8 @@ def flip_card(card_id, bar_css, lbl, val_html, val_cls,
 # ─────────────────────────────────────────────────────────────────────────────
 start_str = sliced_prices.index.min().strftime('%d %b %Y')
 end_str = sliced_prices.index.max().strftime('%d %b %Y')
+backtest_start_str = nav_ms.index.min().strftime('%d %b %Y')
+backtest_end_str = nav_ms.index.max().strftime('%d %b %Y')
 
 hero_placeholder.markdown(f"""
 <div class="hero-wrap">
@@ -1265,7 +1291,7 @@ hero_placeholder.markdown(f"""
   <div class="hero-sub">MODERN PORTFOLIO THEORY &nbsp;·&nbsp; REAL NIFTY 50 MULTI-ASSET ENGINE</div>
   <div class="hero-chips">
     <div class="hero-chip"><div class="cd" style="background:#38BDF8;"></div><b>{n_active}</b> Active Assets</div>
-    <div class="hero-chip"><div class="cd" style="background:#10B981;"></div>Horizon: <b>{time_horizon}</b> ({n_days:,} Trading Days)</div>
+    <div class="hero-chip"><div class="cd" style="background:#10B981;"></div>Horizon: <b>{time_horizon}</b> ({n_days:,} Backtest Trading Days)</div>
     <div class="hero-chip"><div class="cd" style="background:#A855F7;"></div>History: <b>{start_str}</b> → <b>{end_str}</b></div>
     <div class="hero-chip"><div class="cd" style="background:#F43F5E;"></div>Risk-Free Rate: <b>{rf_rate_pct:.2f}%</b></div>
   </div>
@@ -1291,7 +1317,7 @@ sec_header(
 )
 
 diff_cagr = (cagr_ms - cagr_ew) * 100.0
-diff_sharpe = ms_sharpe - ew_sharpe
+diff_sharpe = realized_ms_sharpe - realized_ew_sharpe
 diff_dd = max_dd_ms - max_dd_ew
 
 c1, c2, c3, c4 = st.columns(4)
@@ -1316,14 +1342,14 @@ with c2:
         "sharpe",
         bar_css="linear-gradient(90deg,#0284C7,#38BDF8)",
         lbl="Sharpe Ratio",
-        val_html=f"{ms_sharpe:.2f}",
+        val_html=f"{realized_ms_sharpe:.2f}",
         val_cls="c-blue",
         dlt_html=f'<span class="{"up" if diff_sharpe >= 0 else "down"}">{"▲" if diff_sharpe >= 0 else "▼"} {diff_sharpe:+.2f} vs Equal Weight</span>',
         back_tag="RISK-ADJUSTED",
         back_tag_cls="c-blue",
         back_name="Sharpe Ratio",
         desc=f"Excess return generated per unit of total annualized volatility above the {rf_rate_pct:.2f}% risk-free rate for this exact time period.",
-        eq=f"Sharpe = (R_p − {rf_rate_pct:.2f}%) / σ_p × √252",
+        eq=f"Sharpe = (mean(R_daily) × 252 − {rf_rate_pct:.2f}%) / (std(R_daily) × √252)",
     )
 
 with c3:
@@ -1348,12 +1374,12 @@ with c4:
         lbl="Daily 95% VaR",
         val_html=f"₹{var_95_dollar:,.0f}",
         val_cls="c-amber",
-        dlt_html=f'<span class="down">▼ {abs(var_95_pct)*100:.2f}% per ₹10L Notional</span>',
+        dlt_html=f'<span class="down">▼ {var_95_loss_pct*100:.2f}% per ₹10L Notional</span>',
         back_tag="TAIL RISK",
         back_tag_cls="c-amber",
         back_name="Historical Value at Risk (95%)",
         desc="The minimum expected loss on the worst 5% of trading days during this time window, scaled to ₹10 Lakhs portfolio notional.",
-        eq="VaR₀.₀₅ = Percentile(R_daily, 5%) × Notional",
+        eq="VaR₀.₀₅ = max(0, −Percentile(R_daily, 5%)) × Notional",
     )
 
 st.markdown("<br>", unsafe_allow_html=True)
@@ -1364,8 +1390,8 @@ st.markdown("<br>", unsafe_allow_html=True)
 # ─────────────────────────────────────────────────────────────────────────────
 anchor("sec-perf")
 sec_header(
-    f"Equity Curve Comparison ({start_str} → {end_str})",
-    badge=f"{len(ret_ms_series):,} TRADING DAYS",
+    f"Equity Curve Comparison ({backtest_start_str} → {backtest_end_str})",
+    badge=f"{len(ret_ms_series):,} BACKTEST DAYS",
     color="#0284C7",
     info_id="info-perf",
     info_html="""
@@ -1415,8 +1441,8 @@ col_ef, col_alloc = st.columns([1.1, 0.9], gap="large")
 
 with col_ef:
     sec_header(
-        "Monte Carlo Efficient Frontier",
-        badge=f"{len(frontier_df):,} SIMULATIONS",
+        "Single-Asset Risk/Return Profile" if n_active == 1 else "Monte Carlo Efficient Frontier",
+        badge="ONE ASSET · 100% WEIGHT" if n_active == 1 else f"{len(frontier_df):,} SIMULATIONS",
         color="#7C3AED",
         info_id="info-ef",
         info_html="""
@@ -1513,16 +1539,16 @@ with col_alloc:
         info_html="""
 <h4>◉ Dynamic Max Sharpe Weights</h4>
 <p>Optimal weight distribution computed by PyPortfolioOpt specifically for the chosen time horizon.</p>
-<p>Weights are rounded to 4 decimals, with positions below 0.01% filtered out to avoid transaction dust.</p>
+<p>All selected companies are shown. Zero-weight positions remain visible for comparison.</p>
 """,
     )
 
-    # Sort allocations for visualization
-    top_tickers = [t for t in active_tickers if ms_weights.get(t, 0) > 0.005 or mv_weights.get(t, 0) > 0.03]
-    top_tickers.sort(key=lambda t: max(ms_weights.get(t, 0), mv_weights.get(t, 0)), reverse=True)
-
-    if not top_tickers:
-        top_tickers = active_tickers[:10]
+    # Keep every selected company visible, including zero-weight allocations.
+    top_tickers = sorted(
+        active_tickers,
+        key=lambda ticker: max(ms_weights.get(ticker, 0), mv_weights.get(ticker, 0)),
+        reverse=True,
+    )
 
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
@@ -1548,14 +1574,24 @@ with col_alloc:
     ))
 
     apply_layout(
-        fig_bar, h=400,
+        fig_bar, h=max(400, min(800, 250 + 14 * n_active)),
         barmode="group",
         yaxis_title="Weight (%)",
         yaxis=dict(ticksuffix="%", gridcolor="#C8C0AE"),
         xaxis=dict(showgrid=False, tickangle=-40, tickfont=dict(size=9.5, family="JetBrains Mono", color="#94A3B8")),
         legend=dict(orientation="h", x=1.0, y=1.02, xanchor="right", font=dict(size=9.5, color="#E2E8F0")),
     )
-    st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": False})
+    st.plotly_chart(fig_bar, width="stretch", config={"displayModeBar": True, "responsive": True})
+    weights_table = pd.DataFrame(
+        {
+            "Company": active_tickers,
+            "Max Sharpe Weight (%)": [ms_weights.get(t, 0.0) * 100 for t in active_tickers],
+            "Min Volatility Weight (%)": [mv_weights.get(t, 0.0) * 100 for t in active_tickers],
+            "Equal Weight (%)": [ew_weights.get(t, 0.0) * 100 for t in active_tickers],
+        }
+    ).sort_values("Max Sharpe Weight (%)", ascending=False)
+    with st.expander(f"View all {n_active} company allocations"):
+        st.dataframe(weights_table, hide_index=True, width="stretch")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1567,9 +1603,11 @@ anchor("sec-risk")
 col_rv, col_corr = st.columns([1.05, 0.95], gap="large")
 
 with col_rv:
+    roll_window_short = min(len(ret_ms_series), 21, max(2, len(ret_ms_series) // 4))
+    roll_window_long = min(len(ret_ms_series), 63, max(2, len(ret_ms_series) // 2))
     sec_header(
         "Realized Rolling Volatility",
-        badge="21D & 63D WINDOWS",
+        badge=f"{roll_window_short}D & {roll_window_long}D WINDOWS",
         color="#059669",
         info_id="info-vol",
         info_html="""
@@ -1580,9 +1618,6 @@ with col_rv:
 """,
     )
 
-    roll_window_short = min(21, max(3, len(ret_ms_series) // 4))
-    roll_window_long  = min(63, max(5, len(ret_ms_series) // 2))
-
     vol_21 = ret_ms_series.rolling(roll_window_short).std() * np.sqrt(252) * 100
     vol_63 = ret_ms_series.rolling(roll_window_long).std() * np.sqrt(252) * 100
 
@@ -1590,12 +1625,12 @@ with col_rv:
     fig_rv.add_trace(go.Scatter(
         x=vol_21.index, y=vol_21.values, name=f"{roll_window_short}d Realized Vol",
         line=dict(color="#3B4536", width=2.4),
-        hovertemplate="%{x|%d %b %Y}<br>21d Vol: <b>%{y:.1f}%</b><extra></extra>",
+        hovertemplate=f"%{{x|%d %b %Y}}<br>{roll_window_short}d Vol: <b>%{{y:.1f}}%</b><extra></extra>",
     ))
     fig_rv.add_trace(go.Scatter(
         x=vol_63.index, y=vol_63.values, name=f"{roll_window_long}d Realized Vol",
         line=dict(color="#B5A88E", width=2.2, dash="dash"),
-        hovertemplate="%{x|%d %b %Y}<br>63d Vol: <b>%{y:.1f}%</b><extra></extra>",
+        hovertemplate=f"%{{x|%d %b %Y}}<br>{roll_window_long}d Vol: <b>%{{y:.1f}}%</b><extra></extra>",
     ))
     fig_rv.add_hline(
         y=ms_vol * 100, line=dict(color="#5C6B52", width=1.8, dash="dot"),
@@ -1623,7 +1658,7 @@ with col_corr:
 """,
     )
 
-    corr_assets = top_tickers[:12] if len(top_tickers) >= 4 else active_tickers[:12]
+    corr_assets = active_tickers
     corr_matrix = daily_rets[corr_assets].corr()
 
     fig_hm = go.Figure(go.Heatmap(
@@ -1631,10 +1666,10 @@ with col_corr:
         x=list(corr_matrix.columns),
         y=list(corr_matrix.index),
         colorscale=[[0, "#8B4B4B"], [0.5, "#DCD5C6"], [1, "#3B4536"]],
-        zmin=-0.3, zmax=1.0,
+        zmin=-1.0, zmax=1.0,
         text=np.round(corr_matrix.values, 2),
         texttemplate="%{text:.2f}",
-        textfont=dict(size=8.5, family="Inter", color="#3B4536"),
+        textfont=dict(size=max(6, 10 - len(corr_assets) // 12), family="Inter", color="#3B4536"),
         hovertemplate="%{y} vs %{x}<br>Correlation: <b>%{z:.3f}</b><extra></extra>",
         colorbar=dict(
             title=dict(text="ρ", font=dict(size=10, color="#94A3B8")),
@@ -1644,13 +1679,13 @@ with col_corr:
     ))
 
     apply_layout(
-        fig_hm, h=340,
-        xaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono", color="#94A3B8"), tickangle=-45),
-        yaxis=dict(showgrid=False, tickfont=dict(size=8.5, family="JetBrains Mono", color="#94A3B8")),
+        fig_hm, h=max(340, min(1000, 180 + 20 * len(corr_assets))),
+        xaxis=dict(showgrid=False, tickfont=dict(size=max(6, 10 - len(corr_assets) // 12), family="JetBrains Mono", color="#94A3B8"), tickangle=-45),
+        yaxis=dict(showgrid=False, tickfont=dict(size=max(6, 10 - len(corr_assets) // 12), family="JetBrains Mono", color="#94A3B8")),
         margin=dict(l=5, r=40, t=35, b=50),
         showlegend=False,
     )
-    st.plotly_chart(fig_hm, width="stretch", config={"displayModeBar": False})
+    st.plotly_chart(fig_hm, width="stretch", config={"displayModeBar": True, "responsive": True})
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1664,7 +1699,7 @@ col_donut, col_dd = st.columns([0.85, 1.15], gap="large")
 with col_donut:
     sec_header(
         "Max Sharpe Allocation Composition",
-        badge="ACTIVE HOLDINGS",
+        badge=f"{n_active} SELECTED · {sum(weight > 0 for weight in ms_weights.values())} WEIGHTED",
         color="#059669",
         info_id="info-pie",
         info_html="""
@@ -1673,9 +1708,7 @@ with col_donut:
 """,
     )
 
-    non_zero_alloc = {k: v for k, v in ms_weights.items() if v > 0.001}
-    if not non_zero_alloc:
-        non_zero_alloc = {t: round(1.0 / len(active_tickers), 4) for t in active_tickers[:8]}
+    non_zero_alloc = {k: v for k, v in ms_weights.items() if v > 0}
 
     donut_df = pd.DataFrame(list(non_zero_alloc.items()), columns=["ticker", "weight"]).sort_values("weight", ascending=False)
 
@@ -1685,22 +1718,27 @@ with col_donut:
         labels=donut_df["ticker"],
         values=donut_df["weight"],
         hole=0.62,
-        marker=dict(colors=PALETTE[:len(donut_df)], line=dict(color="#E8E3D7", width=2)),
-        textinfo="label+percent",
-        textfont=dict(family="Inter", size=9.5, color="#F5F0E8"),
+        marker=dict(colors=[PALETTE[i % len(PALETTE)] for i in range(len(donut_df))], line=dict(color="#E8E3D7", width=2)),
+        textinfo="label+percent" if len(donut_df) <= 11 else "percent",
+        textfont=dict(family="Inter", size=9.5 if len(donut_df) <= 11 else 8, color="#F5F0E8"),
         hovertemplate="<b>%{label}</b><br>Weight: %{percent}<extra></extra>",
         direction="clockwise",
         sort=True,
     ))
 
     fig_pie.add_annotation(
-        text=f"<b>{len(donut_df)}</b><br><span style='font-size:9px;color:#94A3B8'>STOCKS</span>",
+        text=f"<b>{n_active}</b><br><span style='font-size:9px;color:#94A3B8'>SELECTED</span><br><span style='font-size:8px;color:#94A3B8'>{len(donut_df)} WITH WEIGHT</span>",
         x=0.5, y=0.5, showarrow=False,
         font=dict(family="Playfair Display", size=19, color="#3B4536"),
     )
 
-    apply_layout(fig_pie, h=345, showlegend=False, margin=dict(l=10, r=10, t=35, b=10))
-    st.plotly_chart(fig_pie, width="stretch", config={"displayModeBar": False})
+    apply_layout(fig_pie, h=max(345, min(700, 250 + 10 * len(donut_df))), showlegend=len(donut_df) > 11, margin=dict(l=10, r=10, t=35, b=10))
+    st.plotly_chart(fig_pie, width="stretch", config={"displayModeBar": True, "responsive": True})
+    if len(donut_df) < n_active:
+        st.caption(
+            f"Showing the {len(donut_df)} companies with positive Max Sharpe weights. "
+            f"All {n_active} selected companies, including zero-weight holdings, are listed in the allocation table above."
+        )
 
     sector_allocations = (
         pd.DataFrame(

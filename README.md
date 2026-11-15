@@ -1,147 +1,161 @@
 # Quantitative Portfolio Risk Engine
 
-A quantitative portfolio analytics, risk modeling, and asset allocation platform built with Python, PyPortfolioOpt, LightGBM, and Streamlit. The application models a 42-asset universe from India's NIFTY equity index, providing classical Mean-Variance optimization (Modern Portfolio Theory), statistical exploratory data analysis, interactive historical transaction simulation, and machine learning volatility forecasting.
+A Streamlit application for historical portfolio simulation, classical portfolio optimization, market and asset diagnostics, and forward-volatility analysis. The project combines local NSE equity price files with pandas, NumPy, Plotly, PyPortfolioOpt, and LightGBM.
 
----
+> **Scope:** This is an educational analytics project. Its historical results are not live investment performance, and its forecasts and allocations are not investment advice.
 
-## 1. Overview
+## Contents
 
-The platform translates quantitative portfolio theory into interactive analytical workflows. It allows analysts and investors to explore historical asset dynamics, evaluate risk-return trade-offs, model mathematically regularized asset allocations, and forecast short-term market volatility regimes.
+- [What the application does](#what-the-application-does)
+- [Application pages](#application-pages)
+- [Data and coverage](#data-and-coverage)
+- [Methods and calculations](#methods-and-calculations)
+- [Run the application](#run-the-application)
+- [Verification](#verification)
+- [Limitations](#limitations)
+- [Project layout](#project-layout)
 
-The application is structured into four primary modules accessible from a centralized landing page (`app/app.py`):
+## What the application does
 
-1. **Historical Simulator** (`pages/1_Historical_Simulator.py`): Interactive ledger-based portfolio construction with discrete whole-share trade execution.
-2. **Classical Quant Engine** (`pages/2_Quant_Engine.py`): Modern Portfolio Theory (MPT) mean-variance optimization, Ledoit-Wolf covariance shrinkage, and walk-forward rolling backtesting.
-3. **Exploratory Data Analysis & Statistics** (`pages/3_EDA_and_Stats.py`): Cross-sectional and single-asset statistical distributions, correlation structures, and tail-risk diagnostics.
-4. **ML Dynamic Risk Engine** (`pages/4_ML_Risk_Engine.py`): Gradient-boosted volatility forecasting, regime classification, and target share rebalancing.
+The app has four interactive pages linked from `app/app.py`:
 
----
+| Page | Purpose |
+|---|---|
+| Historical Simulator | Record dated, whole-share buys and sells and inspect the resulting portfolio history. |
+| Classical Quant Engine | Compare equal-weight, minimum-volatility, and maximum-Sharpe portfolios; inspect allocations, risks, and an out-of-sample rolling backtest. |
+| EDA & Statistics | Explore asset returns, correlations, sector comparisons, distributions, and rolling risk. |
+| ML Risk Engine | Estimate forward market volatility, review a share-weighted portfolio, and calculate integer-share rebalance recommendations. |
 
-## 2. Implemented Modules
+The central analytical question is how historical asset behavior can inform portfolio risk and allocation, and whether trailing market features contain information about subsequent realized volatility. The application answers this through descriptive analysis, historical simulation, portfolio methods, and a volatility-regression workflow; it is not a crash-prediction system.
 
-### Historical Simulator
-- **Transaction Ledger**: Enables users to record sequential buy and sell transactions on specific historical trading dates.
-- **Whole-Share Execution**: Calculates positions using whole shares (`amount // price`) based on actual historical daily closing prices.
-- **Portfolio Tracking**: Evaluates dynamic portfolio market value, net invested capital, absolute profit/loss, cumulative return percentage, and current asset allocation breakdown.
-- **Data Integrity**: Validates asset availability against historical trade dates and prevents sells that exceed current holdings.
+## Application pages
 
-### Classical Quant Engine
-- **Mean-Variance Optimization**: Implements Markowitz portfolio optimization via `PyPortfolioOpt`. Solves for **Maximum Sharpe Ratio** and **Minimum Volatility** allocations.
-- **Covariance Shrinkage**: Uses the Ledoit-Wolf shrinkage estimator to construct well-conditioned covariance matrices from historical daily returns.
-- **Regularization & Bounds**: Enforces long-only constraints ($\sum w_i = 1, w_i \ge 0$) and incorporates L2 weight regularization ($\gamma = 0.1$) to prevent over-concentration.
-- **Risk Metrics**: Calculates Annualized Return (compounded log CAGR), Annualized Volatility ($\times \sqrt{252}$), Value at Risk (Parametric and Historical 95% / 99% VaR), and Maximum Drawdown.
-- **Efficient Frontier & Monte Carlo**: Generates the analytical efficient frontier curve alongside random Monte Carlo portfolio scatter distributions.
-- **Rolling Walk-Forward Backtest**: Provides an out-of-sample rolling-origin backtest routine (`lookback = 252` trading days, rebalancing step = 21 trading days).
+### 1. Historical Simulator
 
-### Exploratory Data Analysis & Statistics
-- **Macro Market Structure**: Interactive pairwise return correlation heatmap with dynamic ticker and sector filtering, plus sector-aggregated risk-return scatter plots.
-- **Asset-Level Diagnostics**: Annualized mean return, annualized standard deviation, sample daily variance, skewness, and excess kurtosis.
-- **Distribution Visualizations**: Probability density histograms with theoretical normal distribution overlays, 30-day and 90-day rolling annualized volatility trends, and box plots comparing individual asset dispersions against an equal-weighted market basket.
+The transaction ledger records ticker, trade date, action, and cash amount. The simulator snaps a requested date to the next available trading date, looks up that close, and converts the amount to whole shares using `floor(amount / price)`. It rejects sells that exceed the shares held as of the execution date. Duplicate trades are kept as separate ledger events and combined when calculating holdings.
 
-### ML Dynamic Risk Engine
-- **Predictive Target**: Trains a gradient-boosted decision tree (`LightGBM`) regressor to predict 30-trading-day forward annualized market volatility ($\sigma_{t+30}$).
-- **Feature Pipeline**: Constructs 9 market-level trailing features from the equal-weighted asset universe, including moving average ratios, trailing return volatilities, cross-asset dispersion, and average pairwise correlation.
-- **Leakage Prevention**: Strictly offsets training features prior to the prediction timestamp and shifts forward targets to eliminate lookahead bias.
-- **Regime Identification**: Flags elevated market risk when forecasted volatility exceeds the historical 75th-percentile quantile threshold of the training distribution.
-- **Actionable Rebalancing**: Converts target optimal weights into discrete whole-share buy, sell, or hold orders based on current user holdings and asset prices.
+The page reports portfolio value, net capital (buys less sale proceeds), profit/loss, return, and portfolio composition over the recorded period. It also supports sector filtering and transaction history views.
 
----
+### 2. Classical Quant Engine
 
-## 3. Data Ingestion & Universe Coverage
+The settings panel selects the asset universe and annual risk-free rate. The page offers 1-week through 5-year windows, Max, and custom dates. Selected assets without usable prices in the chosen interval are excluded and identified. Where available, up to 252 earlier trading sessions are used to initialize the walk-forward optimizer; displayed backtest returns are restricted to the selected interval.
 
-### Data Source & Schema
-- **Raw Files**: Located in `companies/` (mirrored in `data/raw/`). The data consists of raw National Stock Exchange of India (NSE) daily historical CSV exports.
-- **File Schema**: Each company CSV contains 15 fields: `Date`, `Symbol`, `Series`, `Prev Close`, `Open`, `High`, `Low`, `Last`, `Close`, `VWAP`, `Volume`, `Turnover`, `Trades`, `Deliverable Volume`, and `%Deliverble`.
+The engine compares:
 
-### Active Asset Universe & Date Range
-The data ingestion pipeline (`LocalDataLoader.load_all_portfolio_assets` in `src/data_loader.py`):
-1. Discovers 52 raw CSV files in `companies/`.
-2. Skips files with insufficient observations (e.g., `INFRATEL.csv`, which has only 1 data row).
-3. Evaluates missing-data thresholds and drops tickers with greater than 30% missing history (`ADANIPORTS`, `BAJAJ-AUTO`, `BAJAJFINSV`, `COALINDIA`, `NESTLEIND`, `POWERGRID`, `TECHM`).
-4. Aligns prices to the first simultaneous trading date across all surviving assets and forward-fills isolated non-trading gaps.
+- **Equal weight:** one equal allocation per active asset.
+- **Minimum volatility:** a long-only PyPortfolioOpt portfolio minimizing estimated variance.
+- **Maximum Sharpe:** a long-only PyPortfolioOpt portfolio maximizing estimated excess return per unit of volatility, with L2 regularization (`gamma=0.1`).
 
-- **Final Aligned Price Matrix**: **42 assets** across **3,994 trading days**.
-- **Historical Coverage**: **March 23, 2005 through April 30, 2021**.
+The estimation uses annualized historical returns and Ledoit–Wolf shrunk covariance. In the rolling backtest, weights are estimated from prior observations and held between 21-session rebalances. The page presents the resulting equity curves, CAGR, realized Sharpe, drawdown, historical daily VaR, rolling volatility, pairwise correlations, allocations, and Monte Carlo risk/return portfolios. With one active asset, the allocation is necessarily 100% in that asset; multi-asset optimization is not meaningful in that case.
 
-### Data Limitations & Known Gaps
-- **Unadjusted Corporate Actions**: The raw NSE dataset contains unadjusted close prices. When a stock split or bonus issuance occurred, unadjusted prices reflect large single-day drops (e.g., Eicher Motors on 2020-08-24 dropped ~90% due to a 1:10 stock split; Titan on 2011-06-23 dropped ~94.7% due to a 1:10 split and 1:1 bonus; similar unadjusted splits affect ITC, JSW Steel, Asian Paints, Bajaj Finance, and SBI). These discontinuities introduce large artificial negative return spikes into historical volatility and covariance estimates for those specific periods.
-- **Static Historical Window**: Per-company historical prices end on April 30, 2021. The platform does not ingest live, real-time, or post-2021 company market data. (The root-level `NIFTY 500 01 Jan 2010 - 20 Mar 2026.csv` and `INDIA VIX 01 Jan 2010 - 20 Mar 2026.csv` files contain macro index data through March 2026, but are only utilized in standalone macro analysis pipelines).
-- **Survivorship Bias**: The 42-asset universe comprises companies active throughout the 2005–2021 window and does not account for historical index deletions, acquisitions, or corporate insolvencies.
+### 3. EDA & Statistics
 
----
+The EDA page supports sector filtering and ticker selection. It provides cross-asset return correlations, sector-level risk/return views, and asset-level descriptive statistics and distribution plots. Price values that are nonpositive are excluded from return calculations. Annualized means and standard deviations use the 252-trading-day convention; sample statistics and rolling windows are shown over the observations available for the selected data.
 
-## 4. Setup & Execution
+### 4. ML Risk Engine
 
-### Prerequisites
-- Python 3.10 or higher.
-- Standard virtual environment (`venv`).
+The ML page uses the locally loaded aligned asset matrix to engineer market-level features and train a LightGBM regressor. Its target is annualized realized volatility over the next 30 trading sessions. The page applies the model to the selected historical base date, scales the 30-session forecast to a chosen horizon using square-root-of-time scaling, and compares projected risk with a training-sample percentile threshold. This is a volatility forecast and risk summary; it does **not** predict market direction, time crashes, or identify crisis events.
 
-### Installation
-From the `quant_portifolio_engine` root directory:
+Users enter current ticker/share holdings and select a defensive minimum-volatility or aggressive maximum-Sharpe objective. The optimizer runs on the entered holdings. It uses long-only MPT and a 6.5% annual risk-free rate (the optimizer default). Target weights are converted to whole-share targets using the portfolio value and prices on the effective date; recommendations are rounded to integer shares. The page also displays current holdings, sector concentration, correlation, historical portfolio performance, and risk summaries.
 
-```bash
-# 1. Create a virtual environment
+The page’s current LightGBM configuration is a regression model with 100 estimators, learning rate 0.05, maximum depth 5, 15 leaves, minimum child samples 30, row/column subsampling 0.85, L1 regularization 0.05, L2 regularization 0.10, and random seed 42.
+
+#### Separate model-selection training script
+
+`scripts/train_risk_model_standalone.py` is a separate experimentation pipeline, not the model served by the ML page. It engineers a 20-session forward-volatility target, uses a chronological train/validation/test split with target-horizon gaps, compares a naïve volatility baseline with LightGBM, Random Forest, and XGBoost, and tunes candidates with gapped `TimeSeriesSplit` cross-validation. It exports the selected model and diagnostic charts. The Streamlit ML page instead trains its own fixed-configuration LightGBM model for a 30-session target and does not load that exported artifact. Keep results from these two workflows separate when describing or presenting model performance.
+
+## Data and coverage
+
+### Equity universe
+
+`src/data_loader.py` reads per-ticker CSV files from `companies/` or `data/raw/`, depending on the page. It parses dates and close prices, sorts observations, removes duplicate dates, merges tickers on the date index, filters assets above the configured missing-data threshold, and aligns usable histories. The current local dataset contains 52 CSV files; the established aligned matrix contains **42 assets and 3,994 dates**, from **23 March 2005 through 30 April 2021**. The exact number used by a page can depend on its data directory, filtering, selected universe, date window, and missing values.
+
+### Other local data
+
+Root-level NIFTY 500 and India VIX CSV files extend through 20 March 2026 and support standalone macro analysis scripts. They do not extend the per-company price history used by the four interactive portfolio pages.
+
+### Data caveats
+
+- The per-company price history is static and ends on 30 April 2021; the application does not fetch live prices.
+- Company close series are not adjusted consistently for splits, bonuses, dividends, or other corporate actions. Corporate-action jumps can create artificial returns and distort volatility, covariance, drawdown, and optimization outputs.
+- The retained universe reflects surviving/data-valid files and is not a point-in-time historical index membership dataset. Survivorship and membership bias are present.
+- Different pages can apply different alignment and filtering steps. Check the date range, active assets, and warnings displayed by the page being used.
+
+## Methods and calculations
+
+### Portfolio optimization
+
+`src/optimization.py` uses PyPortfolioOpt with long-only bounds (`0 ≤ wᵢ ≤ 1`, `Σwᵢ = 1`). Expected returns are estimated from historical prices and annualized at 252 sessions per year. Covariance is estimated with Ledoit–Wolf shrinkage and annualized on the same basis. The maximum-Sharpe objective includes an L2 penalty; the minimum-volatility objective minimizes portfolio variance. Optimized weights may be sparse after the library’s cleaning step, so selected assets can have zero allocation.
+
+### Classical engine metrics
+
+- **NAV:** starts at ₹100 and compounds realized daily portfolio returns.
+- **CAGR:** annualizes the compounded out-of-sample return using the number of backtested trading sessions.
+- **Realized Sharpe:** annualized mean daily return less the annual risk-free rate, divided by annualized sample volatility.
+- **Maximum drawdown:** largest peak-to-trough decline from the NAV high-water mark, including the starting capital.
+- **Historical 95% daily VaR:** based on the 5th percentile of realized daily returns and scaled to the displayed ₹10 lakh notional.
+- **Monte Carlo portfolios:** random long-only allocations sampled from a Dirichlet distribution and evaluated using the estimated return and covariance inputs. The scatter is a simulation cloud, not a separately solved continuous efficient-frontier curve.
+
+### ML features and target
+
+The feature pipeline in `src/ml_risk_engine_test.py` creates nine trailing market-level features: daily equal-weight market return, 21-session momentum, price-to-63-session moving average, 30-session market volatility, 21- and 63-session market return volatility, mean and dispersion of 30-session asset volatilities, and average 30-session pairwise correlation. The target is forward 30-session annualized realized volatility. Feature/target alignment and the page’s training cutoff keep future target information out of the training sample.
+
+The standalone evaluation uses a chronological split and a 30-session gap between train and test observations. Its 75th-percentile training-target threshold labels observations as normal or upper-volatility for evaluation; this label is a summary of forecast volatility, not a crash or crisis prediction. On the checked local test sample, the threshold labels had 87.73% overall accuracy, while recall for the upper-volatility label was 41.32% (the test set contains far more normal than upper-volatility observations). The regression forecast itself had MAE 0.052679 and RMSE 0.092757 in annualized-volatility units. Read the overall accuracy alongside class-specific recall: it does not mean the model detects 87.73% of high-volatility periods. These metrics are from one historical, corporate-action-unadjusted sample and are not guarantees of future performance.
+
+## Run the application
+
+Requirements are pinned in `requirements.txt` (Python 3.10 or newer is recommended).
+
+```powershell
 python -m venv .venv
-
-# 2. Activate the virtual environment
-# On Windows (PowerShell):
 .venv\Scripts\Activate.ps1
-# On Linux / macOS:
-source .venv/bin/activate
-
-# 3. Install pinned dependencies
 pip install -r requirements.txt
-```
-
-### Running the Application
-Launch the Streamlit web dashboard:
-
-```bash
 streamlit run app/app.py
 ```
 
-The application will start locally (default: `http://localhost:8501`).
+The dashboard is served locally, normally at `http://localhost:8501`.
 
-### Standalone Verification Scripts
-The repository contains standalone execution scripts that verify underlying pipelines:
+## Verification
 
-```bash
-# Verify data loading and matrix alignment
+There is no dedicated pytest suite in the repository. The following scripts exercise selected data, statistics, and model pipelines; some scripts write generated charts or artifacts, so inspect their source before running if preserving the workspace is important.
+
+```powershell
 python src/data_loader.py
-
-# Verify statistical calculations and EDA metrics
 python src/verify_eda.py
-
-# Run standalone ML model feature engineering and evaluation
 python src/ml_risk_engine_test.py
 ```
 
----
+The Streamlit pages are interactive applications and should also be reviewed in the browser for navigation, input handling, charts, and the selected data range. Syntax checks alone do not validate visual layout or user interactions.
 
-## 5. Methodology Overview
+## Limitations
 
-### Descriptive Analysis vs. Forecasting
-- **Descriptive Historical Analysis**: Metrics such as sample mean return, rolling volatility, historical drawdown, and distribution moments (skewness, excess kurtosis) quantify observed behavior over the recorded historical sample.
-- **Predictive Modeling**: The machine learning engine models future volatility expectations. Point forecasts represent conditional expected 30-day volatility based on trailing market dispersion, not guaranteed future prices.
+- Historical results are sensitive to the static sample, survivorship bias, and unadjusted corporate actions.
+- Backtests omit brokerage, exchange fees, taxes, bid/ask spread, market impact, and slippage. Integer-share recommendations also ignore lot-size rules and may not be executable at the displayed close.
+- The ML forecast concerns volatility magnitude. It does not forecast returns, prices, direction, or crash timing. Horizon scaling assumes square-root-of-time behavior and is an approximation.
+- The optimizer’s expected returns and covariance are estimates from historical data. They can be unstable, especially for short samples or highly correlated assets.
+- Risk-free rates are model inputs, not continuously sourced market observations. The Classical Quant Engine exposes a user setting; the ML rebalancing optimizer currently uses its 6.5% default.
+- Outputs are analytical demonstrations, not personalized financial advice.
 
-### Optimization Objectives & Constraints
-The `PortfolioOptimizer` (`src/optimization.py`) provides:
-1. **Max Sharpe Ratio**: $\max_w \frac{w^T \mu - R_f}{\sqrt{w^T \Sigma w}}$, where $\mu$ is annualized historical mean log return, $\Sigma$ is the Ledoit-Wolf shrunk covariance matrix, and $R_f$ is the user-configured risk-free rate.
-2. **Minimum Volatility**: $\min_w w^T \Sigma w$.
-3. **Constraints**: Full investment ($\sum_{i=1}^n w_i = 1$) and long-only positions ($0 \le w_i \le 1$). An L2 penalty ($\gamma = 0.1$) is added to the objective to penalize extreme corner solutions and encourage diversification.
-- *Note*: The optimizer does not directly minimize maximum drawdown via dynamic programming; drawdown metrics in the dashboard are computed ex-post on the resulting historical equity curve.
+## Project layout
 
-### Machine Learning Target & Evaluation
-- **Target Variable**: Annualized realized volatility over the subsequent 30 trading days:
-  $$\sigma_{t+30} = \text{std}(r_{t+1:t+30}) \times \sqrt{252}$$
-- **Algorithm**: LightGBM regressor (`LGBMRegressor`, objective: `regression`, learning rate: `0.05`, estimators: `100`).
-- **Evaluation**: The standalone evaluation script evaluates test-period Mean Absolute Error (MAE), Root Mean Squared Error (RMSE), and $R^2$. Crisis regimes are evaluated post-hoc by comparing predicted volatility against the historical 75th-percentile threshold.
-
----
-
-## 6. Limitations & Responsible Interpretation
-
-1. **In-Sample Optimization Display**: Headline optimal weights and efficient frontier curves displayed on the main Quant Engine page are estimated over the selected historical slice (in-sample). While a walk-forward rolling-origin backtest routine is implemented in code (`PortfolioOptimizer.rolling_backtest`), static optimal allocations reflect historical parameter fitting rather than out-of-sample forward performance.
-2. **Volatility Forecasting vs. Crash Timing**: The ML model forecasts continuous volatility magnitude. It does not predict market direction, trade timing, or individual security price shocks. High forecasted volatility indicates an environment of elevated historical dispersion, not a guaranteed market decline.
-3. **Execution Frictions Omitted**: The historical simulator and rebalancing calculations do not incorporate brokerage commissions, exchange transaction charges, securities transaction tax (STT), market impact, bid-ask spread slippage, or dividend reinvestment. Real-world execution will deviate from simulated performance.
-4. **No Financial or Investment Advice**: This software is an educational and quantitative engineering demonstration. It is not financial advice, investment advisory, or a recommendation to purchase or sell any security.
+```text
+app/
+  app.py                         Streamlit landing page and navigation
+  pages/
+    1_Historical_Simulator.py    Trade ledger and historical portfolio simulation
+    2_Quant_Engine.py            Classical MPT, backtest, metrics, and plots
+    3_EDA_and_Stats.py           Return, risk, correlation, and distribution analysis
+    4_ML_Risk_Engine.py           Volatility forecast and share rebalance analysis
+  assets/                        Application images
+src/
+  data_loader.py                 Local CSV ingestion and price alignment
+  optimization.py                PyPortfolioOpt portfolio methods/backtest
+  ml_risk_engine_test.py         ML features, target, split, and evaluation
+  features.py, ml_models.py      Additional feature/model utilities
+  sector_mapping.py, theme.py    Shared page helpers
+companies/                       Per-company historical CSV files
+data/raw/                         Alternate raw ticker data directory
+models/, charts/                  Existing generated model/chart artifacts
+scripts/                          Standalone training and visualization scripts
+requirements.txt                  Pinned Python dependencies
+```

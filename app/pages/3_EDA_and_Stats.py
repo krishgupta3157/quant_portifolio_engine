@@ -513,7 +513,7 @@ kpis = [
     ("Annualized mean return", format_percent(mean_return * 252), "daily mean × 252", "cyan"),
     ("Annualized volatility / SD", format_percent(volatility * np.sqrt(252)), "daily SD × √252", "purple"),
     ("Daily variance", f"{variance:.6f}", "sample variance", "green"),
-    ("Skewness", format_statistic(skewness), "negative = crash risk", "amber"),
+    ("Skewness", format_statistic(skewness), "negative = downside asymmetry", "amber"),
     ("Kurtosis", format_statistic(kurtosis), "excess; fat tails / black swans", "red"),
 ]
 
