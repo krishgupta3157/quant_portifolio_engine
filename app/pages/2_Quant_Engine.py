@@ -1,4 +1,4 @@
-﻿"""
+"""
 Quantitative Portfolio Risk Engine & Dynamic Asset Allocation Optimizer
 Frontend · Streamlit + Plotly · Powered by Real NIFTY 50 Historical Backend
 """
@@ -165,39 +165,26 @@ div[data-testid="stAppViewContainer"] > section.main {{
 }}
 .nav-btn .ni {{ font-size: 0.82rem; opacity: 0.9; }}
 
-.simulator-nav-button {{
-  position: fixed !important;
-  top: 9px;
-  right: 2rem;
-  z-index: 10001;
+/* Sidebar Nav: Rename 'app' to 'Main Dashboard' */
+[data-testid="stSidebarNav"] a[href$="/"] span,
+[data-testid="stSidebarNav"] a[href$="/app"] span,
+[data-testid="stSidebarNav"] a[href*="app"] span,
+[data-testid="stSidebarNavItems"] li:first-child a span,
+[data-testid="stSidebarNav"] ul li:first-child a span {{
+  font-size: 0 !important;
+  line-height: 0 !important;
+  display: inline-block !important;
 }}
-
-.simulator-nav-button [data-testid="stButton"] button {{
-  padding: 0.42rem 1.05rem !important;
-  background: #222B1C !important;
-  border: 1px solid #222B1C !important;
-  border-radius: 20px !important;
-  color: #FFFFFF !important;
-  font-size: 0.72rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.08em !important;
-  text-transform: uppercase !important;
-}}
-
-.simulator-nav-button [data-testid="stButton"] button * {{
-  color: #FFFFFF !important;
-  font-weight: 700 !important;
-}}
-
-.simulator-nav-button [data-testid="stButton"] button:hover {{
-  background: #3B4536 !important;
-  border-color: #3B4536 !important;
-  color: #FFFFFF !important;
-  transform: translateY(-1px) !important;
-}}
-
-.simulator-nav-button [data-testid="stButton"] button:hover * {{
-  color: #FFFFFF !important;
+[data-testid="stSidebarNav"] a[href$="/"] span::after,
+[data-testid="stSidebarNav"] a[href$="/app"] span::after,
+[data-testid="stSidebarNav"] a[href*="app"] span::after,
+[data-testid="stSidebarNavItems"] li:first-child a span::after,
+[data-testid="stSidebarNav"] ul li:first-child a span::after {{
+  content: "Main Dashboard" !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  visibility: visible !important;
+  font-weight: 500 !important;
 }}
 
 /* ═══════ OFF-CANVAS SETTINGS DRAWER ═══════ */
@@ -231,13 +218,27 @@ div[data-testid="stSidebarContent"] {{
   padding: 1.4rem 1.4rem 2.5rem 1.4rem !important;
 }}
 
-[data-testid="stSidebar"] * {{
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] b,
+[data-testid="stSidebar"] h3,
+[data-testid="stSidebar"] [data-baseweb="select"] * {{
   font-family: 'Inter', sans-serif !important;
+}}
+
+/* Ensure expander arrow symbol displays properly and doesn't get overridden to 'Inter' */
+[data-testid="stSidebar"] [data-testid="stIconMaterial"],
+[data-testid="stSidebar"] [data-testid="stExpanderToggleIcon"],
+[data-testid="stSidebar"] .material-symbols-rounded,
+[data-testid="stSidebar"] span[data-testid="stIconMaterial"],
+[data-testid="stSidebar"] i,
+[data-testid="stSidebar"] svg {{
+  font-family: "Material Symbols Rounded", "Material Icons", sans-serif !important;
 }}
 
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span,
+[data-testid="stSidebar"] span:not([data-testid="stIconMaterial"]):not(.material-symbols-rounded),
 [data-testid="stSidebar"] b,
 [data-testid="stSidebar"] h3 {{
   color: #3B4536 !important;
@@ -681,9 +682,8 @@ li[aria-selected="true"] {{
 <div class="settings-backdrop" onclick="const b = Array.from(document.querySelectorAll('button')).find(el => el.innerText.includes('Close') || el.innerText.includes('✖')); if(b) b.click();"></div>
 """, unsafe_allow_html=True)
 
-with st.container(key="simulator_nav_button"):
-    if st.button("Historical Simulator", key="nav_historical_simulator"):
-        st.switch_page("pages/1_Historical_Simulator.py")
+if st.button("← Main Dashboard", key="nav_main_dashboard"):
+    st.switch_page("app.py")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

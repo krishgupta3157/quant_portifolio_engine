@@ -1,4 +1,4 @@
-﻿"""Share-based machine-learning risk and portfolio rebalancing engine."""
+"""Share-based machine-learning risk and portfolio rebalancing engine."""
 
 from __future__ import annotations
 
@@ -329,6 +329,9 @@ def main() -> None:
 
     features, target = build_live_features(prices)
     valid_tickers = sorted(prices.columns.tolist())
+
+    if st.button("← Main Dashboard", key="nav_main_dashboard"):
+        st.switch_page("app.py")
 
     st.markdown(
         """

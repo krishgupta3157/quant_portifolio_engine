@@ -1,4 +1,4 @@
-﻿"""Historical portfolio simulator page.
+"""Historical portfolio simulator page.
 
 This page is intentionally isolated from ``app/app.py``.  It uses the same
 local portfolio price matrix and lets a user build a dated trade ledger,
@@ -539,6 +539,9 @@ def chart_layout(height: int) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Header and trade form
 # --------------------------------------------------------------------------- #
+if st.button("← Main Dashboard", key="back_to_dashboard"):
+    st.switch_page("app.py")
+
 st.markdown(
     f"""
     <div class="sim-hero">
@@ -552,9 +555,6 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
-if st.button("← Main Dashboard", key="back_to_dashboard"):
-    st.switch_page("app.py")
 
 st.markdown('<div class="section-title">Trade Ledger</div>', unsafe_allow_html=True)
 form_col, reset_col = st.columns([5, 1])

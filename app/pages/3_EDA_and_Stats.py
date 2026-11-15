@@ -1,4 +1,4 @@
-﻿"""Exploratory data analysis and statistical diagnostics for the asset universe."""
+"""Exploratory data analysis and statistical diagnostics for the asset universe."""
 
 from __future__ import annotations
 
@@ -346,6 +346,9 @@ daily_std = asset_returns.std(ddof=1)
 annualized_return = daily_mean * 252
 annualized_volatility = daily_std * np.sqrt(252)
 market_return = asset_returns.mean(axis=1).dropna()
+
+if st.button("← Main Dashboard", key="nav_main_dashboard"):
+    st.switch_page("app.py")
 
 st.markdown(
     """
