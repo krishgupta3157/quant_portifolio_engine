@@ -449,7 +449,7 @@ st.markdown(
   <div class="about-grid">
     <div class="about-col">
       <p class="about-body">
-        The Quant Portfolio Risk Engine is designed to bridge the gap between academic portfolio theory and tactical execution. Built around the <strong>NIFTY 50</strong> universe, the platform unifies over 2.1 million observations to measure empirical risk, covariance structures, and fat-tailed distribution dynamics.
+        The Quant Portfolio Risk Engine is designed to bridge the gap between academic portfolio theory and tactical execution. Built around the <strong>NIFTY 50</strong> universe, the platform brings together market data and portfolio analytics to help investors assess risk, understand relationships between assets, and explore how portfolios may behave across changing market conditions.
       </p>
     </div>
     <div class="about-col">
